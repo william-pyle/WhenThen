@@ -16,6 +16,7 @@ class ReleasePackageTest(unittest.TestCase):
             root = pathlib.Path(folder)
             fixtures = {
                 'app/build.gradle': "android { defaultConfig { versionName '1.0.0' } }",
+                'version.properties': 'VERSION_NAME=1.0.0\nVERSION_CODE=1\n',
                 'app/src/main/java/Example.java': 'class Example {}',
                 'scripts/example.py': 'print("example")',
                 'tests/example.py': '# example test',
@@ -38,6 +39,7 @@ class ReleasePackageTest(unittest.TestCase):
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(content, encoding='utf-8')
             shutil.copy2(repo / 'scripts/package-release.py', root / 'scripts/package-release.py')
+            shutil.copy2(repo / 'scripts/release_support.py', root / 'scripts/release_support.py')
             subprocess.run([sys.executable, str(root / 'scripts/package-release.py')], check=True, capture_output=True)
             with zipfile.ZipFile(root / 'dist/WhenThen-1.0.0-source.zip') as archive:
                 names = set(archive.namelist())
@@ -48,7 +50,11 @@ class ReleasePackageTest(unittest.TestCase):
                 self.assertFalse(any('/build/' in name or name.lower().endswith('/agents.md') for name in names))
             checksums = json.loads((root / 'dist/checksums.json').read_text(encoding='utf-8'))
             self.assertEqual(len(checksums), 2)
-            self.assertEqual((root / 'dist/WhenThen-1.0.0.apk').read_text(), 'fixture-apk')
+            self.assertEqual((root / 'dist/WhenThen.apk').read_text(), 'fixture-apk')
+            manifest = json.loads((root / 'dist/update.json').read_text(encoding='utf-8'))
+            self.assertEqual(manifest['versionCode'], 1)
+            self.assertEqual(manifest['sha256'], checksums[0]['sha256'])
+            self.assertEqual(manifest['apkUrl'], 'https://github.com/william-pyle/WhenThen/releases/download/v1.0.0/WhenThen.apk')
 
 
 if __name__ == '__main__':

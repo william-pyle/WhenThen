@@ -1,4 +1,14 @@
 plugins { id 'com.android.application' }
+def appVersion = new Properties()
+rootProject.file('version.properties').withInputStream { appVersion.load(it) }
+def signingValues = new Properties()
+def signingFile = rootProject.file('.local/tools/signing.properties')
+if (signingFile.exists()) signingFile.withInputStream { signingValues.load(it) }
+['storeFile':'ANDROID_KEYSTORE_PATH', 'storePassword':'ANDROID_KEYSTORE_PASSWORD',
+ 'keyAlias':'ANDROID_KEY_ALIAS', 'keyPassword':'ANDROID_KEY_PASSWORD'].each { key, env ->
+    if (System.getenv(env)) signingValues[key] = System.getenv(env)
+}
+def canSign = ['storeFile','storePassword','keyAlias','keyPassword'].every { signingValues[it] }
 android {
     namespace 'com.jazcosolutions.whenthen'
     testBuildType (project.findProperty('testBuildType') ?: 'debug')
@@ -7,24 +17,22 @@ android {
         applicationId 'com.jazcosolutions.whenthen'
         minSdk 31
         targetSdk 36
-        versionCode 1
-        versionName '1.0.0'
+        versionCode appVersion['VERSION_CODE'].toInteger()
+        versionName appVersion['VERSION_NAME']
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
-    def signingFile = rootProject.file('.local/tools/signing.properties')
-    if (signingFile.exists()) {
-        def keys = new Properties()
-        signingFile.withInputStream { keys.load(it) }
+    buildFeatures { buildConfig true }
+    if (canSign) {
         signingConfigs {
             personalRelease {
-                storeFile file(keys['storeFile'])
-                storePassword keys['storePassword']
-                keyAlias keys['keyAlias']
-                keyPassword keys['keyPassword']
+                storeFile file(signingValues['storeFile'])
+                storePassword signingValues['storePassword']
+                keyAlias signingValues['keyAlias']
+                keyPassword signingValues['keyPassword']
             }
         }
     }
-    buildTypes { release { minifyEnabled false; if (signingFile.exists()) signingConfig signingConfigs.personalRelease } }
+    buildTypes { release { minifyEnabled false; if (canSign) signingConfig signingConfigs.personalRelease } }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
     testOptions { unitTests.returnDefaultValues = true; animationsDisabled = true }
     lint { abortOnError true }
@@ -38,3 +46,6 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.7.0'
 }
 tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
+tasks.matching { it.name == 'preReleaseBuild' }.configureEach {
+    doFirst { if (!canSign) throw new GradleException('Release signing is not configured. See README.md.') }
+}

@@ -29,8 +29,10 @@ public final class MainActivity extends Activity {
       TEAL = 0xFF087D70;
   private static final int[] OPTIONS = {0xFFFFF0CC, 0xFFE4F7EF, 0xFFFFE7EF, 0xFFE5EFFF};
   private LinearLayout root, body, nav;
+  private TextView updateStatus;
   private ScrollView scroll;
   private Store store;
+  AppUpdater updates;
   private String page = "rules";
   private Rule draft;
   private String exportText;
@@ -43,6 +45,13 @@ public final class MainActivity extends Activity {
   public void onCreate(Bundle state) {
     super.onCreate(state);
     store = new Store(this);
+    updates =
+        new AppUpdater(
+            this,
+            () -> draft == null,
+            () -> {
+              if (updateStatus != null) updateStatus.setText(updates.status());
+            });
     getWindow().setStatusBarColor(BG);
     getWindow().setNavigationBarColor(BG);
     getWindow()
@@ -79,6 +88,19 @@ public final class MainActivity extends Activity {
   protected void onResume() {
     super.onResume();
     if (root != null && draft == null) render();
+    if (updates != null) updates.onResume();
+  }
+
+  @Override
+  protected void onPause() {
+    if (updates != null) updates.onPause();
+    super.onPause();
+  }
+
+  @Override
+  protected void onDestroy() {
+    if (updates != null) updates.close();
+    super.onDestroy();
   }
 
   @Override
@@ -90,7 +112,7 @@ public final class MainActivity extends Activity {
 
   @android.annotation.SuppressLint(
       "GestureBackNavigation") // API 33+ is registered with OnBackInvokedDispatcher; this path
-                               // supports Android 12.
+  // supports Android 12.
   @Override
   public void onBackPressed() {
     handleBack();
@@ -223,6 +245,7 @@ public final class MainActivity extends Activity {
   }
 
   private void render() {
+    updateStatus = null;
     root = column();
     root.setBackgroundColor(BG);
     root.setFitsSystemWindows(true);
@@ -1049,13 +1072,28 @@ public final class MainActivity extends Activity {
 
   @android.annotation.SuppressLint(
       "BatteryLife") // Personal emergency/task-automation use case, with explicit owner-directed
-                     // setup.
+  // setup.
   private void setup() {
     title(
         "GET YOUR PIECES READY",
         "Phone setup",
         "Grant only the access your rules need. Green access checks are not a completed emergency"
             + " test.");
+    LinearLayout updateCard = card(0xFFEDE6FC);
+    add(updateCard, text("App updates", 20, INK, true), 0);
+    updateStatus = text(updates.status(), 14, MUTED, false);
+    add(updateCard, updateStatus, 8);
+    add(
+        updateCard,
+        text(
+            "Checks GitHub when you open the app. You choose when to install; your rules and"
+                + " contacts are never uploaded.",
+            14,
+            MUTED,
+            false),
+        8);
+    add(updateCard, quiet("Check for updates", () -> updates.check(true)), 12);
+    add(body, updateCard, 14);
     setupItem(
         "Notifications",
         "Shows monitoring status and rule messages.",
@@ -1219,7 +1257,9 @@ public final class MainActivity extends Activity {
     add(
         body,
         text(
-            "WhenThen 1.0.0 · personal edition\nLocal storage · no account · no analytics\nAndroid "
+            "WhenThen "
+                + BuildConfig.VERSION_NAME
+                + " · personal edition\nLocal storage · no account · no analytics\nAndroid "
                 + Build.VERSION.RELEASE
                 + " / API "
                 + Build.VERSION.SDK_INT
