@@ -37,11 +37,11 @@ These are screenshots of the native Android app.
 
 ## Download and install
 
-**[Download the latest signed APK](https://github.com/william-pyle/WhenThen/releases/latest/download/WhenThen.apk)** ? [Release notes and older versions](https://github.com/william-pyle/WhenThen/releases)
+**[Download the latest signed APK](https://github.com/william-pyle/WhenThen/releases/latest/download/WhenThen.apk)** · [Release notes and older versions](https://github.com/william-pyle/WhenThen/releases)
 
 Download `WhenThen.apk` directly on your phone. You do not need Android Studio, a computer, or a GitHub account to try the app. This is a personal APK distribution, outside Google Play. Android 12 or newer is required.
 
-1. Copy the APK to your phone and open it. Android may ask you to allow installation from that browser or file manager.
+1. Open the downloaded APK on your phone. Android may ask you to allow installation from that browser or file manager.
 2. Open **WhenThen → Setup** and grant the permissions needed by your chosen rules. Installer restrictions can make SMS or call-log access unavailable; the app reports missing access.
 3. Set battery access to unrestricted. On Samsung devices, add WhenThen to **Never sleeping apps**; menu names vary by One UI version.
 4. Choose a template or **Build a rule**, configure its options, and add THEN blocks. Save, simulate, then enable the rule.
@@ -49,7 +49,7 @@ Download `WhenThen.apk` directly on your phone. You do not need Android Studio, 
 
 ## Updating WhenThen
 
-When you open WhenThen, it checks for a completed stable GitHub release, at most once every 15 minutes. If a newer version is ready, choose **Update now** or **Later**. Later postpones that version for 24 hours; **Setup ? Check for updates** checks immediately whenever you want.
+When you open WhenThen, it checks for a completed stable GitHub release, at most once every 15 minutes. If a newer version is ready, choose **Update now** or **Later**. Later postpones that version for 24 hours; **Setup → Check for updates** checks immediately whenever you want.
 
 The first time you update, Android asks you to allow installation from WhenThen. Enable **Allow from this source** for WhenThen and return to the app. The download is checked against its checksum, application ID, version, and signing certificate before Android asks you to confirm installation.
 
@@ -85,7 +85,9 @@ The original 1.0.0 release was checked on November 6, 2026:
 | Android event integrations | All nine triggers passed with emulator call, SMS, Wi-Fi, and GPS inputs. |
 | Galaxy S24 Ultra, Android 17 / API 37, One UI 9 | Installation, layout, notifications, screen-off monitoring, audio playback, volume read-back, and restoration checked. The tester confirmed hearing the locked-screen diagnostic tone. |
 
-The current build includes unit tests for the rule engine and update validation, emulator tests for the update dialogs and permissions, and release archive exclusion checks. The original full phone-event checks above are not a guarantee for every device or emergency scenario.
+Version 1.0.1 passed **39 unit tests**, **28 emulator tests** (the physical-only audio test was skipped), Android lint with zero errors, and release archive exclusion checks. These cover update metadata validation, Update now/Later, installation permission prompts, offline behavior, saved-rule preservation, and restricted APK sharing. The original full phone-event checks above are not a guarantee for every device or emergency scenario.
+
+The GitHub-built 1.0.1 APK also completed a full emulator update from an older signed test installation: Later, manual checking, Android permission and installation confirmation, and reopening with the saved rule intact. The installed APK matched the published checksum.
 
 **Real-world testing remains incomplete:** live carrier calls and SMS send/delivery, physical GPS crossings, DND/Bluetooth combinations, extended idle, and Samsung recovery behavior still need verification. The locked-screen audio check used a diagnostic event, not a carrier-delivered SMS. These results do not establish reliability for every emergency scenario; test the actual rules and conditions you intend to use.
 
