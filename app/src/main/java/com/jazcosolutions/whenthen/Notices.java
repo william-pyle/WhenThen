@@ -51,7 +51,7 @@ public final class Notices {
         .setContentTitle("WhenThen is monitoring")
         .setContentText(
             MonitorService.health.isEmpty()
-                ? "Your enabled blocks are listening. Tap to manage."
+                ? "Listening for enabled rules. Tap to manage or stop."
                 : "Some rules are blocked. Open Setup to review access.")
         .setContentIntent(open(c, "", ""))
         .setOngoing(true)
@@ -97,7 +97,7 @@ public final class Notices {
       message(
           c,
           "Tap to resume WhenThen",
-          "Monitoring is paused. Open WhenThen and start monitoring again.",
+          "Android interrupted monitoring. Open WhenThen to resume automatically and review Setup.",
           "");
     } catch (Exception ignored) {
     }

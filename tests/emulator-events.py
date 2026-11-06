@@ -1,7 +1,7 @@
 """Exercise Android receivers on the isolated emulator, never on the owner's phone."""
-import json,pathlib,subprocess,time,xml.etree.ElementTree as ET,re
+import json,pathlib,subprocess,time,xml.etree.ElementTree as ET,re,os
 ROOT=pathlib.Path(__file__).resolve().parents[1]
-ADB=str(ROOT/'.local/tools/sdk/platform-tools/adb.exe')
+ADB=os.environ.get('ADB',str(pathlib.Path(os.environ.get('ANDROID_HOME', ROOT/'.local/tools/sdk'))/'platform-tools'/('adb.exe' if os.name=='nt' else 'adb')))
 (ROOT/'test-results').mkdir(exist_ok=True)
 
 def adb(*args):
@@ -18,6 +18,9 @@ def tap(text):
             adb('shell','input','tap',str((x1+x2)//2),str((y1+y2)//2));time.sleep(.6);return
     raise RuntimeError('Missing UI control: '+text)
 def history():return json.loads(adb('shell','run-as','com.jazcosolutions.whenthen','cat','files/history.json'))
+assert adb('shell','getprop','ro.kernel.qemu').strip()==b'1', 'Isolated emulator required'
+fixture=adb('shell','am','instrument','-w','-e','class','com.jazcosolutions.whenthen.RuntimeTest#prepareHostIntegrationFixtures','com.jazcosolutions.whenthen.test/androidx.test.runner.AndroidJUnitRunner').decode(errors='replace')
+assert 'OK (1 test)' in fixture, fixture
 adb('shell','am','start','-n','com.jazcosolutions.whenthen/.MainActivity');time.sleep(1)
 texts=[n.get('text') for n in ui().iter('node')]
 if 'Start monitoring' in texts:tap('Start monitoring')

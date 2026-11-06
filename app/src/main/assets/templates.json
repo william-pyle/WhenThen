@@ -1,0 +1,47 @@
+{
+  "schema": "whenthen-templates/1",
+  "templates": [
+    {
+      "id": "starter-repeated-calls",
+      "name": "Get through to me",
+      "description": "Three calls from someone you choose within five minutes turn up the sound and show a message.",
+      "rule": {
+        "priority": 10,
+        "cooldownSeconds": 60,
+        "when": {"type": "call_count", "options": {"contact": "", "count": "3", "minutes": "5"}},
+        "then": [
+          {"type": "emergency_loud", "options": {"channels": "all"}},
+          {"type": "show_message", "options": {"message": "Someone is trying to reach you."}}
+        ]
+      }
+    },
+    {
+      "id": "starter-welcome-home",
+      "name": "Welcome home",
+      "description": "Connect to your home Wi-Fi and see a little welcome message.",
+      "rule": {
+        "when": {"type": "wifi_connected", "options": {"ssid": ""}},
+        "then": [{"type": "show_message", "options": {"message": "You're connected at home. Take a breath."}}]
+      }
+    },
+    {
+      "id": "starter-emergency-word",
+      "name": "My emergency word",
+      "description": "A text from someone you choose matching HELP makes the phone loud.",
+      "rule": {
+        "priority": 10,
+        "when": {"type": "sms_matches", "options": {"contact": "", "matchText": "HELP"}},
+        "then": [{"type": "emergency_loud", "options": {"channels": "all"}}]
+      }
+    },
+    {
+      "id": "starter-leaving-place",
+      "name": "Before I go",
+      "description": "Leave a place's 250-foot boundary and see a reminder.",
+      "rule": {
+        "when": {"type": "waypoint_exit", "options": {"waypoint": "", "latitude": "", "longitude": "", "radiusFeet": "250"}},
+        "then": [{"type": "show_message", "options": {"message": "Keys, wallet, and phone?"}}]
+      }
+    }
+  ]
+}

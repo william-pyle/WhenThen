@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/whenthen-icon-v1.png" alt="WhenThen orange and violet interlocking blocks" width="128">
+  <img src="docs/images/whenthen-icon-c2.png" alt="Orange WHEN brick at the upper left connected to a purple THEN brick extending right" width="128">
 </p>
 
 # WhenThen
@@ -23,7 +23,8 @@ Personal edition · Android **12 or later** · Java and Android Views
 - **React to calls, texts, places, and Wi-Fi.** Nine trigger types cover incoming, missed, and repeated calls; incoming and exact-match SMS; place entry and exit; and connection to or disconnection from a named Wi-Fi network.
 - **Choose from eight actions.** Mute, restore sound, set volume, use emergency loud, play an audio file, show a message or image notification, or send an SMS.
 - **Try before you enable.** Simulation uses the real rule matcher and previews actions without sending texts, changing volume, displaying action notifications, or playing audio.
-- **See when monitoring is active.** A user-started foreground session has an ongoing notification, permission checks, Stop controls, and a resume prompt after an interruption.
+- **Keep monitoring ready.** Monitoring starts on the first launch and resumes after a reboot, update, or saved rule change. An ongoing notification and Stop control show its state; blocked rules explain missing access.
+- **Build a template library.** Four JSON starters are included. Import and export templates, or save a rule as a reusable template, without rebuilding the app.
 
 For example: **WHEN** a chosen contact calls three times within five minutes, **THEN** turn up the sound and show a message.
 
@@ -31,9 +32,16 @@ For example: **WHEN** a chosen contact calls three times within five minutes, **
 
 | Your rules | Build a WHEN | Add THEN actions |
 | --- | --- | --- |
-| <img src="docs/images/native-home.png" alt="WhenThen home screen" width="250"> | <img src="docs/images/native-builder.png" alt="Repeated-call trigger and its options" width="250"> | <img src="docs/images/native-options.png" alt="Sound and message action blocks" width="250"> |
+| <img src="docs/images/native-home-1.0.2.png" alt="WhenThen home screen" width="250"> | <img src="docs/images/native-builder-1.0.2.png" alt="Repeated-call trigger and its options" width="250"> | <img src="docs/images/native-options-1.0.2.png" alt="Sound and message action blocks" width="250"> |
 
-These are screenshots of the native Android app.
+These are screenshots of the native Android app, version 1.0.2.
+
+<details>
+<summary>The template library</summary>
+
+<img src="docs/images/native-templates-1.0.2.png" alt="Template library with import, export, and editable starter flows" width="320">
+
+</details>
 
 ## Download and install
 
@@ -45,7 +53,9 @@ Download `WhenThen.apk` directly on your phone. You do not need Android Studio, 
 2. Open **WhenThen → Setup** and grant the permissions needed by your chosen rules. Installer restrictions can make SMS or call-log access unavailable; the app reports missing access.
 3. Set battery access to unrestricted. On Samsung devices, add WhenThen to **Never sleeping apps**; menu names vary by One UI version.
 4. Choose a template or **Build a rule**, configure its options, and add THEN blocks. Save, simulate, then enable the rule.
-5. Tap **Start monitoring** while the app is visible. After a reboot, force-stop, or interruption, open the app and restart monitoring.
+5. Monitoring starts automatically when you first open the app, even while it waits for an enabled rule. Complete Setup and enable the rules you want to run. For Wi-Fi and place rules, grant precise location **all the time** so they can resume after a reboot.
+
+**Pause monitoring** stops the current session. Saving a rule change, rebooting the phone, or installing an update starts monitoring again, including after a previous pause. Simply closing and reopening the app respects a manual pause. Android requires the initial launch before boot receivers work; after **Force stop** in Android settings, open the app again. Battery restrictions and missing permissions can prevent operation; check the visible status and Setup page.
 
 ## Updating WhenThen
 
@@ -53,7 +63,7 @@ When you open WhenThen, it checks for a completed stable GitHub release, at most
 
 The first time you update, Android asks you to allow installation from WhenThen. Enable **Allow from this source** for WhenThen and return to the app. The download is checked against its checksum, application ID, version, and signing certificate before Android asks you to confirm installation.
 
-Updates retain your saved rules. Reopen the app afterward and tap **Start monitoring** if needed. Downloads and checks do not activate rules, send messages, or play audio. An unavailable network leaves the app usable; a failed or cancelled update keeps the installed version.
+Updates retain your saved rules and templates. From version 1.0.2, monitoring resumes automatically after installation, including after a previous manual pause. An unavailable network leaves the app usable; a failed or cancelled update keeps the installed version.
 
 For an initial trial, open **Try it** and simulate a rule before enabling it. Grant permissions only for the events and actions you intend to use. Android or your installer may restrict SMS and call-log access, and the app will show those missing capabilities.
 
@@ -63,7 +73,7 @@ Rules, readiness observations, and the latest 300 history entries stay on the ph
 
 ## How the blocks behave
 
-- New, edited, and imported rules start **paused**. Changing rules pauses monitoring; start it again to apply the configuration.
+- New, duplicated, template-based, and imported rules start **paused**. An edited rule keeps its enabled/paused switch. Saving changes automatically resumes monitoring with the updated rules; a paused rule still needs its own switch enabled.
 - SMS text matching is exact and case-sensitive, including spaces. SMS support does not include RCS or third-party messaging apps.
 - Repeated-call rules count distinct incoming calls, including answered calls. They fire at the threshold and rearm after the rolling count falls below it.
 - Wi-Fi and place monitoring establish an initial baseline without firing. Wi-Fi disconnects allow a short roaming grace period; internet loss alone is not a Wi-Fi disconnect.
@@ -73,7 +83,22 @@ Rules, readiness observations, and the latest 300 history entries stay on the ph
 - Outgoing SMS is limited to one message per rule/recipient every five minutes and ten messages per hour across the app. It uses the configured or default SMS SIM; unknown sends are not automatically retried.
 - Import replaces the rule collection after confirmation and leaves it paused. Select media files again when moving to another phone.
 
+## Reusable JSON templates
+
+Open **Explore templates** for **Get through to me**, **Welcome home**, **My emergency word**, and **Before I go**. Each creates an independent, editable rule. Configure its personal fields, save, simulate, and enable it when ready.
+
+- **More → Save as template** saves an existing rule's flow. Contacts, recipients, Wi-Fi names, places, SIM selection, and media file choices are cleared; message text is kept. The original rule is unchanged.
+- **Import templates** accepts a JSON library and asks before adding it. Existing rules and templates are kept. Identical templates are skipped; conflicting IDs create separate copies.
+- **Export template** shares one template; **Export library** shares the whole collection. Review exported JSON for private message text and details in imported templates before sharing.
+- Custom templates can be removed without removing any rules created from them. The four starters remain available.
+
+The format is `whenthen-templates/1`, with up to 100 templates and a 1 MB limit for both imported files and the complete library. Every template has an `id`, `name`, `description`, and `rule` containing one `when` and 1–20 `then` blocks. Blank personal fields are filled in the editor. Use the [included starter JSON](app/src/main/assets/templates.json) as a complete example. Importing a template never runs or enables its rule.
+
 ## Tested status
+
+Version **1.0.2** passed **49 unit tests** and **37 native emulator tests**, with the physical-only audio diagnostic skipped. Debug, instrumentation, and signed release builds pass; Android lint reports zero errors. All nine event integrations pass using emulator call, SMS, Wi-Fi, and GPS inputs.
+
+Actual emulator reboot and APK replacement both restarted monitoring after a GUI pause, preserving the saved rule and custom template. Enabled-rule edits apply automatically while running or stopped. Template import/export, independent drafts, privacy-field clearing, and atomic rejection of invalid or oversized libraries are covered. The approved icon and native screens were reviewed, including 320 dp layout and circular/rounded-square masks at 128, 48, and 32 pixels.
 
 The original 1.0.0 release was checked on November 6, 2026:
 
@@ -152,15 +177,15 @@ The key and `signing.properties` stay under ignored `.local/tools/`. Keep a secu
 
 The default build runs host-side unit tests and lint without connecting to a phone. Instrumentation tests and the Python integration scripts under `tests/` are additional device tests. Emulator fixtures reset test rules and **must only run on an isolated emulator**. `DeviceSmokeTest` is a separate physical-device test that locks the screen and plays a tone; run it only in an explicitly authorized device-test session.
 
-Check the release archive's source and private-file exclusions with `python tests/test-package-release.py`.
+Check the release archive's source and private-file exclusions with `python tests/test-package-release.py`. With the debug and test APKs installed on isolated `emulator-5554`, `tests/emulator-events.py`, `tests/emulator-location.py`, and `tests/emulator-lifecycle.py` exercise real Android events, reboot, and APK replacement. Set `ADB` or `ANDROID_HOME` for your SDK; these scripts verify that the target is an emulator before modifying fixtures.
 
 ## Publishing a new version
 
 GitHub builds, tests, signs, and attaches the APK automatically when you publish a stable release. Signing secrets are already configured for this repository; the private key is never committed.
 
-1. Run `python scripts/set-version.py 1.0.2`, replacing `1.0.2` with your next version. This also increases Android's version code.
+1. Run `python scripts/set-version.py 1.0.3`, replacing `1.0.3` with your next version. This also increases Android's version code.
 2. Commit and push the app changes and `version.properties` to `main`.
-3. Open [Create a release](https://github.com/william-pyle/WhenThen/releases/new), create the matching tag (for example `v1.0.2`) from `main`, add release notes, and publish it as a stable release.
+3. Open [Create a release](https://github.com/william-pyle/WhenThen/releases/new), create the matching tag (for example `v1.0.3`) from `main`, add release notes, and publish it as a stable release.
 4. Wait for [Release APK](https://github.com/william-pyle/WhenThen/actions/workflows/release.yml) to finish successfully. `WhenThen.apk`, the source ZIP, checksums, and `update.json` will appear on the release. The app only offers an update after these files are ready.
 
 A release is ready only when its workflow is green and the APK is attached. Versions without an updater need one manual installation of the updater-enabled APK first.

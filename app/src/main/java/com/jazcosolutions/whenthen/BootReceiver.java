@@ -7,13 +7,10 @@ public final class BootReceiver extends BroadcastReceiver {
   public void onReceive(Context c, Intent i) {
     if (!Intent.ACTION_BOOT_COMPLETED.equals(i.getAction())
         && !Intent.ACTION_MY_PACKAGE_REPLACED.equals(i.getAction())) return;
-    Store s = new Store(c);
-    if (s.prefs().getBoolean("monitorWanted", false)) {
-      s.log(
-          "Restart needed",
-          "Phone restarted or app updated. Tap Start monitoring to restore a user-started session.",
-          "blocked");
-      Notices.resumePrompt(c);
-    }
+    // A GUI stop is temporary. A reboot/update explicitly starts a new session.
+    Monitoring.resume(
+        c,
+        Intent.ACTION_BOOT_COMPLETED.equals(i.getAction()) ? "Phone restarted" : "App updated",
+        true);
   }
 }

@@ -81,7 +81,7 @@ public class AppTest {
   public void templateContainsOrderedEmergencyActions() {
     activity.launchActivity(null);
     onView(withText("Explore templates")).perform(scrollTo(), click());
-    onView(withText("☎  Get through in an emergency")).perform(click());
+    onView(withText("Use Get through to me")).perform(scrollTo(), click());
     onView(withContentDescription("Contact phone number"))
         .perform(scrollTo(), replaceText("3125550100"));
     onView(withText("Save my rule")).perform(scrollTo(), click());
@@ -116,7 +116,7 @@ public class AppTest {
     onView(withText("Your flow, step by step")).check(matches(isDisplayed()));
     assertEquals("simulation", store.history().get(0).status);
     assertTrue(store.history().get(0).detail.contains("WHEN matched"));
-    assertNull(MonitorService.active);
+    assertFalse(store.history().stream().anyMatch(e -> e.status.equals("dispatched")));
   }
 
   @Test

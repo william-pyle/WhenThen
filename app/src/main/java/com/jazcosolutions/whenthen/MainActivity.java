@@ -25,13 +25,17 @@ public final class MainActivity extends Activity {
       INK = 0xFF25213D,
       MUTED = 0xFF6C6581,
       ORANGE = 0xFFB74715,
-      PURPLE = 0xFF7045D8,
+      PURPLE = 0xFF6B20D0,
       TEAL = 0xFF087D70;
   private static final int[] OPTIONS = {0xFFFFF0CC, 0xFFE4F7EF, 0xFFFFE7EF, 0xFFE5EFFF};
   private LinearLayout root, body, nav;
   private TextView updateStatus;
+  private LinearLayout monitorCard;
+  private TextView monitorTitle, monitorDetail, monitorHealth;
+  private Button monitorButton;
   private ScrollView scroll;
   private Store store;
+  private TemplateLibrary templateLibrary;
   AppUpdater updates;
   private String page = "rules";
   private Rule draft;
@@ -45,6 +49,7 @@ public final class MainActivity extends Activity {
   public void onCreate(Bundle state) {
     super.onCreate(state);
     store = new Store(this);
+    templateLibrary = new TemplateLibrary(this);
     updates =
         new AppUpdater(
             this,
@@ -87,7 +92,9 @@ public final class MainActivity extends Activity {
   @Override
   protected void onResume() {
     super.onResume();
+    Monitoring.onOpen(this);
     if (root != null && draft == null) render();
+    refreshMonitorStatus();
     if (updates != null) updates.onResume();
   }
 
@@ -99,6 +106,7 @@ public final class MainActivity extends Activity {
 
   @Override
   protected void onDestroy() {
+    handler.removeCallbacksAndMessages(null);
     if (updates != null) updates.close();
     super.onDestroy();
   }
@@ -226,9 +234,17 @@ public final class MainActivity extends Activity {
 
   private LinearLayout block(int color) {
     LinearLayout l = column();
-    l.setPadding(dp(16), dp(30), dp(16), dp(20));
+    l.setPadding(dp(16), dp(42), dp(16), dp(22));
     l.setBackground(new BlockDrawable(color, getResources().getDisplayMetrics().density));
     return l;
+  }
+
+  private void connectedBlock(LinearLayout parent, View view, boolean when, int gap) {
+    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
+    params.leftMargin = dp(when ? 0 : 18);
+    params.rightMargin = dp(when ? 18 : 0);
+    params.topMargin = dp(gap);
+    parent.addView(view, params);
   }
 
   private TextView pill(String label, int color, int fg) {
@@ -246,6 +262,7 @@ public final class MainActivity extends Activity {
 
   private void render() {
     updateStatus = null;
+    monitorCard = null;
     root = column();
     root.setBackgroundColor(BG);
     root.setFitsSystemWindows(true);
@@ -265,8 +282,12 @@ public final class MainActivity extends Activity {
     icon.setContentDescription("WhenThen interlocking blocks logo");
     brand.addView(icon, new LinearLayout.LayoutParams(dp(38), dp(38)));
     TextView name = text("  WhenThen", 21, INK, true);
+    name.setSingleLine(true);
     brand.addView(name, new LinearLayout.LayoutParams(0, -2, 1));
-    brand.addView(pill("YOUR PHONE. YOUR RULES.", 0xFFEDE8FA, PURPLE));
+    android.content.res.Configuration configuration = getResources().getConfiguration();
+    if (configuration.screenWidthDp / configuration.fontScale >= 400) {
+      brand.addView(pill("YOUR PHONE. YOUR RULES.", 0xFFEDE8FA, PURPLE));
+    }
     root.addView(brand);
     scroll = new ScrollView(this);
     scroll.setFillViewport(true);
@@ -303,6 +324,9 @@ public final class MainActivity extends Activity {
             break;
           case "lab":
             lab();
+            break;
+          case "templates":
+            templatePage();
             break;
           default:
             home();
@@ -345,7 +369,7 @@ public final class MainActivity extends Activity {
   }
 
   private void home() {
-    LinearLayout hero = card(0xFF25203F);
+    LinearLayout hero = card(0xFF1D0874);
     add(hero, text("MAKE LIFE CLICK", 11, 0xFFB8A5FF, true), 0);
     add(hero, text("Small blocks.\nBig possibilities.", 29, Color.WHITE, true), 7);
     add(
@@ -356,67 +380,39 @@ public final class MainActivity extends Activity {
             0xFFDDD7F1,
             false),
         8);
-    LinearLayout pieces = row();
-    pieces.setPadding(0, dp(18), 0, 0);
-    TextView w = pill("WHEN  something happens", 0xFFFF9B60, 0xFF4A210B);
-    TextView t = pill("THEN  make it happen", 0xFFB397FF, 0xFF30204E);
-    pieces.addView(w);
-    TextView arrow = text("  →  ", 19, Color.WHITE, true);
-    pieces.addView(arrow);
-    pieces.addView(t); // Wrap naturally on compact phones via separate rows below.
     LinearLayout labels = column();
-    add(
-        labels,
-        w.getParent() == null ? w : pill("WHEN  something happens", 0xFFFF9B60, 0xFF4A210B),
-        14);
-    add(labels, pill("THEN  make it happen", 0xFFB397FF, 0xFF30204E), 5);
+    LinearLayout whenBrick = block(0xFFFFA233), thenBrick = block(0xFFB88AF0);
+    add(whenBrick, text("WHEN  something happens", 13, 0xFF442004, true), 0);
+    add(thenBrick, text("THEN  make it happen", 13, 0xFF291143, true), 0);
+    connectedBlock(labels, whenBrick, true, 16);
+    connectedBlock(labels, thenBrick, false, -6);
     add(hero, labels, 0);
     add(body, hero, 6);
     List<Rule> rules = store.rules();
     long enabled = rules.stream().filter(r -> r.enabled).count();
     boolean active = MonitorService.active != null;
     LinearLayout status = card(active ? 0xFFE0F5EC : 0xFFFFF0D9);
-    add(
-        status,
-        text(
-            active ? "●  Monitoring is on" : "○  Monitoring is paused",
-            17,
-            active ? TEAL : 0xFF7D4A10,
-            true),
-        0);
-    add(
-        status,
-        text(
-            enabled
-                + " enabled · "
-                + rules.size()
-                + " total rules"
-                + (store.prefs().getBoolean("monitorWanted", false) && !active
-                    ? "\nOpen and restart after an interruption."
-                    : ""),
-            13,
-            MUTED,
-            false),
-        5);
-    add(
-        status,
+    monitorCard = status;
+    monitorTitle = text("", 17, TEAL, true);
+    monitorDetail = text("", 13, MUTED, false);
+    monitorButton =
         button(
-            active ? "Pause monitoring" : "Start monitoring",
-            active ? TEAL : PURPLE,
+            "",
+            TEAL,
             () -> {
-              if (active) stopMonitor();
+              if (MonitorService.active != null) stopMonitor();
               else startMonitor();
-            }),
-        12);
-    if (active && !MonitorService.health.isEmpty())
-      add(
-          status,
-          text("Some rules need attention. Open Setup or Activity for details.", 14, ORANGE, true),
-          10);
+            });
+    monitorHealth = text("", 14, ORANGE, true);
+    add(status, monitorTitle, 0);
+    add(status, monitorDetail, 5);
+    add(status, monitorButton, 12);
+    add(status, monitorHealth, 10);
+    updateMonitoringCard();
     add(body, status, 16);
     pair(
         body,
-        button("+  Build a rule", PURPLE, () -> newRule(null)),
+        button("+  Build a rule", PURPLE, this::newRule),
         quiet("Explore templates", this::templates));
     add(body, text("Your building blocks", 21, INK, true), 24);
     if (rules.isEmpty()) {
@@ -484,52 +480,69 @@ public final class MainActivity extends Activity {
   }
 
   private void startMonitor() {
-    List<Rule> enabled = new ArrayList<>();
-    for (Rule r : store.rules()) if (r.enabled) enabled.add(r);
-    if (enabled.isEmpty()) {
-      alert("Enable a rule first", "Build a rule, finish Setup, then turn on its switch.");
-      return;
-    }
-    List<String> issues = new ArrayList<>();
-    for (Rule r : enabled)
-      for (String issue : Readiness.missing(this, r)) issues.add(r.name + ": " + issue);
-    if (!issues.isEmpty()) {
-      alert("A few pieces are missing", String.join("\n", issues));
-      return;
-    }
-    try {
-      startForegroundService(new Intent(this, MonitorService.class).setAction("START"));
-      handler.postDelayed(this::render, 500);
-    } catch (Exception e) {
-      alert("Could not start", e.getMessage());
-    }
+    Monitoring.resume(this, "Started in the app", false);
+    refreshMonitorStatus();
   }
 
   private void stopMonitor() {
-    if (MonitorService.active != null)
-      startService(new Intent(this, MonitorService.class).setAction("STOP"));
-    handler.postDelayed(this::render, 350);
+    Monitoring.stop(this);
+    refreshMonitorStatus();
   }
 
-  private void pauseForChanges() {
-    if (MonitorService.active != null) {
-      startService(new Intent(this, MonitorService.class).setAction("STOP"));
-      toast("Monitoring paused. Start it again to apply your changes.");
-    }
+  private void refreshMonitorStatus() {
+    handler.postDelayed(
+        () -> {
+          if (!isFinishing() && !isDestroyed()) updateMonitoringCard();
+        },
+        500);
+  }
+
+  private void updateMonitoringCard() {
+    if (monitorCard == null) return;
+    boolean active = MonitorService.active != null;
+    List<Rule> rules = store.rules();
+    long enabled = rules.stream().filter(r -> r.enabled).count();
+    monitorCard.setBackground(round(active ? 0xFFE0F5EC : 0xFFFFF0D9, 21));
+    monitorTitle.setText(active ? "●  Monitoring is on" : "○  Monitoring is paused");
+    monitorTitle.setTextColor(active ? TEAL : 0xFF7D4A10);
+    monitorDetail.setText(
+        getString(
+            R.string.monitor_counts,
+            enabled,
+            rules.size(),
+            (Monitoring.wanted(this) && !active
+                ? "\nStarting automatically; review Setup if it stays paused."
+                : active && enabled == 0
+                    ? "\nReady for your first enabled rule."
+                    : !active
+                        ? "\nA saved rule change, reboot or update will resume monitoring."
+                        : "")));
+    monitorButton.setText(active ? "Pause monitoring" : "Start monitoring");
+    monitorButton.setBackground(round(active ? TEAL : PURPLE, 15));
+    monitorHealth.setText(
+        active && !MonitorService.health.isEmpty()
+            ? "Some access needs attention. Open Setup or Activity for details."
+            : "");
+    monitorHealth.setVisibility(monitorHealth.getText().length() == 0 ? View.GONE : View.VISIBLE);
+  }
+
+  private void resumeForChanges() {
+    Monitoring.rulesChanged(this);
+    refreshMonitorStatus();
   }
 
   private void saveChangedRule(Rule rule) {
     List<Rule> rules = store.rules();
     for (int i = 0; i < rules.size(); i++) if (rules.get(i).id.equals(rule.id)) rules.set(i, rule);
     store.save(rules);
-    pauseForChanges();
+    resumeForChanges();
   }
 
   private void ruleMenu(Rule r) {
     new AlertDialog.Builder(this)
         .setTitle(r.name)
         .setItems(
-            new String[] {"Duplicate", "Try in simulator", "Delete"},
+            new String[] {"Duplicate", "Try in simulator", "Save as template", "Delete"},
             (d, n) -> {
               if (n == 0) {
                 Rule copy = Store.copy(r);
@@ -541,7 +554,8 @@ public final class MainActivity extends Activity {
               } else if (n == 1) {
                 page = "lab";
                 render();
-              } else
+              } else if (n == 2) saveAsTemplate(r);
+              else
                 new AlertDialog.Builder(this)
                     .setTitle("Delete this rule?")
                     .setMessage(r.name)
@@ -551,7 +565,7 @@ public final class MainActivity extends Activity {
                           List<Rule> all = store.rules();
                           all.removeIf(a -> a.id.equals(r.id));
                           store.save(all);
-                          pauseForChanges();
+                          resumeForChanges();
                           render();
                         })
                     .setNegativeButton("Keep", null)
@@ -561,48 +575,124 @@ public final class MainActivity extends Activity {
   }
 
   private void templates() {
+    page = "templates";
+    render();
+  }
+
+  private void newRule() {
+    draft = new Rule();
+    draft.when.set("count", 3).set("minutes", 5).set("radiusFeet", 250);
+    draft.then.add(Rule.action("show_message"));
+    editorPage();
+  }
+
+  private void templatePage() {
+    title(
+        "REUSABLE BUILDING BLOCKS",
+        "Your template library",
+        "Pick a starting point, customize its pieces, and save your own rule.");
+    pair(
+        body,
+        button(
+            "Import templates",
+            PURPLE,
+            () ->
+                startActivityForResult(
+                    new Intent(Intent.ACTION_OPEN_DOCUMENT)
+                        .addCategory(Intent.CATEGORY_OPENABLE)
+                        .setType("application/json"),
+                    104)),
+        quiet("Export library", () -> exportTemplates(templateLibrary.all())));
+    add(
+        body,
+        text(
+            "Templates never run on their own. New rules start paused until you enable them.",
+            13,
+            MUTED,
+            false),
+        12);
+    for (RuleTemplate template : templateLibrary.all()) {
+      LinearLayout tile = card(Color.WHITE);
+      add(tile, text(template.name, 20, INK, true), 0);
+      add(tile, text(template.description, 14, MUTED, false), 6);
+      add(tile, pill("WHEN  " + Rule.label(template.rule.when.type), 0xFFFFE4CA, ORANGE), 12);
+      for (Rule.Piece action : template.rule.then)
+        add(tile, pill("THEN  " + Rule.label(action.type), 0xFFEDE3FF, PURPLE), 4);
+      add(
+          tile,
+          button(
+              "Use " + template.name,
+              PURPLE,
+              () -> {
+                draft = template.instantiate();
+                editorPage();
+              }),
+          14);
+      pair(
+          tile,
+          quiet("Export template", () -> exportTemplates(List.of(template))),
+          quiet(
+              templateLibrary.isCustom(template.id) ? "Remove template" : "Starter template",
+              () -> {
+                if (!templateLibrary.isCustom(template.id)) {
+                  toast("The four starter templates are always available.");
+                  return;
+                }
+                new AlertDialog.Builder(this)
+                    .setTitle("Remove this template?")
+                    .setMessage("Your saved rules are kept.")
+                    .setNegativeButton("Keep", null)
+                    .setPositiveButton(
+                        "Remove",
+                        (d, w) -> {
+                          try {
+                            templateLibrary.remove(template.id);
+                            render();
+                          } catch (Exception e) {
+                            alert("Could not remove", e.getMessage());
+                          }
+                        })
+                    .show();
+              }));
+      add(body, tile, 16);
+    }
+  }
+
+  private void saveAsTemplate(Rule rule) {
+    EditText name = new EditText(this);
+    name.setText(rule.name);
+    name.setContentDescription("Template name");
     new AlertDialog.Builder(this)
-        .setTitle("Pick a starting point")
-        .setItems(
-            new String[] {
-              "☎  Get through in an emergency",
-              "⌂  A little welcome home",
-              "✉  A special text, a loud alert",
-              "◉  Leave a place, show a reminder"
-            },
-            (d, n) -> newRule(n))
-        .setNegativeButton("Back", null)
+        .setTitle("Save as template")
+        .setView(name)
+        .setMessage(
+            "Contacts, Wi-Fi names, places and file selections are cleared in the template. Message"
+                + " text is kept. Your rule stays unchanged.")
+        .setNegativeButton("Cancel", null)
+        .setPositiveButton(
+            "Save template",
+            (d, w) -> {
+              try {
+                templateLibrary.add(
+                    List.of(RuleTemplate.fromRule(rule, name.getText().toString())));
+                toast("Saved in your template library.");
+              } catch (Exception e) {
+                alert("Could not save template", e.getMessage());
+              }
+            })
         .show();
   }
 
-  private void newRule(Integer template) {
-    draft = new Rule();
-    draft.when.set("count", 3).set("minutes", 5).set("radiusFeet", 250);
-    if (template == null) {
-      draft.then.add(Rule.action("show_message"));
-    } else if (template == 0) {
-      draft.name = "Get through to me";
-      draft.when.type = "call_count";
-      draft.priority = 10;
-      draft.then.add(Rule.action("emergency_loud"));
-      draft.then.add(Rule.action("show_message").set("message", "Someone is trying to reach you."));
-    } else if (template == 1) {
-      draft.name = "Welcome home";
-      draft.when.type = "wifi_connected";
-      draft.then.add(
-          Rule.action("show_message").set("message", "You're connected at home. Take a breath."));
-    } else if (template == 2) {
-      draft.name = "My emergency word";
-      draft.when.type = "sms_matches";
-      draft.when.set("matchText", "HELP");
-      draft.priority = 10;
-      draft.then.add(Rule.action("emergency_loud"));
-    } else {
-      draft.name = "Before I go";
-      draft.when.type = "waypoint_exit";
-      draft.then.add(Rule.action("show_message").set("message", "Keys, wallet, and phone?"));
-    }
-    editorPage();
+  private void exportTemplates(List<RuleTemplate> templates) {
+    new AlertDialog.Builder(this)
+        .setTitle("Export templates?")
+        .setMessage(
+            "Templates may include message text and details from imported files. Review the JSON"
+                + " before sharing it.")
+        .setNegativeButton("Cancel", null)
+        .setPositiveButton(
+            "Export", (d, w) -> export(RuleTemplate.encode(templates), "WhenThen-templates.json"))
+        .show();
   }
 
   private void editorPage() {
@@ -683,17 +773,16 @@ public final class MainActivity extends Activity {
         "Build your flow",
         "Tap each block to choose what happens. Options fit right inside.");
     input(body, "Rule name", draft.name, 1, v -> draft.name = v);
-    LinearLayout when = block(0xFFFF9B60);
+    LinearLayout when = block(0xFFFFA233);
     add(when, text("01  /  WHEN", 12, 0xFF542A13, true), 0);
     add(when, text(Rule.label(draft.when.type), 23, 0xFF3F210F, true), 7);
     add(when, quiet("Change WHEN block", () -> choosePiece(true, -1)), 12);
     whenOptions(when, draft.when);
-    add(body, when, 22);
-    add(body, text("↓  THEN connect these actions", 13, MUTED, true), 16);
+    connectedBlock(body, when, true, 22);
     for (int i = 0; i < draft.then.size(); i++) {
       int index = i;
       Rule.Piece piece = draft.then.get(i);
-      LinearLayout then = block(i % 2 == 0 ? 0xFFAF94FF : 0xFF8CCFE8);
+      LinearLayout then = block(0xFFB88AF0);
       add(then, text(String.format(Locale.US, "%02d  /  THEN", i + 2), 12, 0xFF352458, true), 0);
       add(then, text(Rule.label(piece.type), 23, 0xFF2B2046, true), 7);
       add(then, quiet("Change THEN block", () -> choosePiece(false, index)), 12);
@@ -730,7 +819,7 @@ public final class MainActivity extends Activity {
         controls.addView(b, lp);
       }
       add(then, controls, 14);
-      add(body, then, 14);
+      connectedBlock(body, then, false, -6);
     }
     add(
         body,
@@ -1011,16 +1100,16 @@ public final class MainActivity extends Activity {
     List<Rule> rules = store.rules();
     int existing = -1;
     for (int i = 0; i < rules.size(); i++) if (rules.get(i).id.equals(draft.id)) existing = i;
-    draft.enabled = false;
+    // An existing rule keeps its switch setting; new/template rules are already paused.
     if (existing >= 0) rules.set(existing, draft);
     else rules.add(draft);
     try {
       store.save(rules);
-      pauseForChanges();
+      resumeForChanges();
       draft = null;
       page = "rules";
       render();
-      toast("Saved! Turn on the rule after Setup.");
+      toast("Saved. Monitoring resumes automatically; enable new rules after Setup.");
     } catch (Exception ex) {
       alert("Could not save", ex.getMessage());
     }
@@ -1144,7 +1233,8 @@ public final class MainActivity extends Activity {
         });
     setupItem(
         "Background location",
-        "Optional additional access for place rules; grant after precise location.",
+        "Choose Allow all the time for automatic Wi-Fi and place monitoring after reboot. Grant"
+            + " precise location first.",
         Readiness.has(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION),
         () -> {
           if (!Readiness.has(this, Manifest.permission.ACCESS_FINE_LOCATION)) {
@@ -1177,7 +1267,9 @@ public final class MainActivity extends Activity {
         text(
             "Settings → Battery → Background usage limits. Remove WhenThen from Sleeping and Deep"
                 + " sleeping apps, then add it to Never sleeping apps (labels may vary). After"
-                + " reboot or force-stop, open WhenThen and start monitoring again.",
+                + " first installation, open WhenThen once and complete Setup. Reboot and update"
+                + " restart monitoring automatically. After an Android force-stop, open the app"
+                + " again.",
             14,
             MUTED,
             false),
@@ -1341,7 +1433,7 @@ public final class MainActivity extends Activity {
         "Simulate a matching event. No texts are sent, no volume changes, and no files play.");
     List<Rule> rules = store.rules();
     if (rules.isEmpty()) {
-      add(body, button("Build your first rule", PURPLE, () -> newRule(null)), 20);
+      add(body, button("Build your first rule", PURPLE, this::newRule), 20);
       return;
     }
     for (Rule r : rules) {
@@ -1485,7 +1577,7 @@ public final class MainActivity extends Activity {
           if (out == null) throw new IOException("Could not open destination.");
           out.write(exportText.getBytes(StandardCharsets.UTF_8));
         }
-        toast("Backup saved.");
+        toast("JSON file saved.");
         exportText = null;
       }
       if (request == 103) {
@@ -1512,7 +1604,7 @@ public final class MainActivity extends Activity {
                 (d, w) -> {
                   try {
                     store.save(imported);
-                    pauseForChanges();
+                    resumeForChanges();
                     render();
                     toast("Imported with every rule paused.");
                   } catch (Exception ex) {
@@ -1520,6 +1612,31 @@ public final class MainActivity extends Activity {
                   }
                 })
             .setNegativeButton("Cancel", null)
+            .show();
+      }
+      if (request == 104) {
+        List<RuleTemplate> templates;
+        try (InputStream input = getContentResolver().openInputStream(uri)) {
+          templates = RuleTemplate.decode(TemplateLibrary.read(input));
+        }
+        new AlertDialog.Builder(this)
+            .setTitle("Import " + templates.size() + " templates?")
+            .setMessage(
+                "Adds reusable drafts to your library. Existing rules and templates are kept."
+                    + " Nothing is enabled or run.")
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton(
+                "Add templates",
+                (d, w) -> {
+                  try {
+                    int added = templateLibrary.add(templates);
+                    page = "templates";
+                    render();
+                    toast(added + " templates added.");
+                  } catch (Exception e) {
+                    alert("Import failed", e.getMessage());
+                  }
+                })
             .show();
       }
     } catch (Exception e) {
@@ -1530,6 +1647,7 @@ public final class MainActivity extends Activity {
   @Override
   public void onRequestPermissionsResult(int request, String[] permissions, int[] grants) {
     super.onRequestPermissionsResult(request, permissions, grants);
+    Monitoring.onOpen(this);
     if (draft == null) render();
   }
 

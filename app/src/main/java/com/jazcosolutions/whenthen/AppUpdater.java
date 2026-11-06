@@ -166,8 +166,8 @@ final class AppUpdater {
             .setMessage(
                 release.notes
                     + "\n\n"
-                    + "Your saved rules stay on this phone. After installation, reopen WhenThen and"
-                    + " restart monitoring if needed.")
+                    + "Your saved rules and templates stay on this phone. Monitoring resumes"
+                    + " automatically after installation, even if you paused it earlier.")
             .setPositiveButton("Update now", (d, which) -> requestInstall(release))
             .setNegativeButton("Later", (d, which) -> later(release))
             .setOnCancelListener(d -> later(release))

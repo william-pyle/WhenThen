@@ -22,6 +22,8 @@ public final class MonitorService extends Service {
   private RuleEngine engine;
   private ActionRunner runner;
   private volatile boolean running;
+  private volatile int generation;
+  private String configuration = "";
   private ConnectivityManager.NetworkCallback networkCallback;
   private LocationListener locationListener;
   private ContentObserver callObserver;
@@ -42,21 +44,25 @@ public final class MonitorService extends Service {
 
   @Override
   public int onStartCommand(Intent i, int flags, int startId) {
-    if (i == null) {
+    if (i == null && !Monitoring.wanted(this)) {
       stopSelf();
       return START_NOT_STICKY;
     }
-    if ("STOP".equals(i.getAction())) {
+    String action = i == null ? "START" : i.getAction();
+    if ("STOP".equals(action)) {
       stopRequested();
       return START_NOT_STICKY;
     }
-    if ("QUIET".equals(i.getAction())) {
+    if ("QUIET".equals(action)) {
       runner.stopAudio();
-      return START_NOT_STICKY;
+      if (!running) stopSelf();
+      return running ? START_STICKY : START_NOT_STICKY;
     }
-    if (running) return START_NOT_STICKY;
     try {
       List<Rule> rules = store.rules();
+      String nextConfiguration = Store.json(rules) + accessKey();
+      if (running && !"RELOAD".equals(action) && configuration.equals(nextConfiguration))
+        return START_STICKY;
       boolean needsLocation =
           rules.stream()
               .anyMatch(
@@ -68,13 +74,24 @@ public final class MonitorService extends Service {
       if (Build.VERSION.SDK_INT >= 34) types = ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE;
       if (needsLocation
           && Readiness.has(this, android.Manifest.permission.ACCESS_FINE_LOCATION)
+          && Readiness.has(this, android.Manifest.permission.ACCESS_BACKGROUND_LOCATION)
           && Readiness.locationOn(this)) types |= ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION;
-      if (rules.stream()
-          .anyMatch(r -> r.enabled && r.then.stream().anyMatch(a -> a.type.equals("play_audio"))))
-        types |= ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK;
+      // Monitoring itself is specialUse, not media playback. Never declare mediaPlayback
+      // at boot merely because a dormant rule contains a future short audio action.
+      health = "";
       startForeground(1, Notices.monitor(this), types);
-      engine = new RuleEngine(store.engineState());
-      engine.state.boundaries.clear();
+      running = false;
+      generation++;
+      clearObservers();
+      runner.close();
+      runner = new ActionRunner(this);
+      // Serialize engine replacement after any in-flight event; queued old events are rejected.
+      worker.execute(
+          () -> {
+            engine = new RuleEngine(store.engineState());
+            engine.state.boundaries.clear();
+          });
+      configuration = nextConfiguration;
       running = true;
       active = this;
       startAt = System.currentTimeMillis();
@@ -84,19 +101,42 @@ public final class MonitorService extends Service {
       observeCallLog();
       store.log(
           "Monitoring started",
-          "Started by you. Wi-Fi and location establish a baseline without firing actions.",
+          (i == null
+                  ? "Android restored monitoring"
+                  : i.getStringExtra("reason") == null
+                      ? "Monitoring requested"
+                      : i.getStringExtra("reason"))
+              + ". Wi-Fi and location establish a baseline without firing actions.",
           "observed");
       health = "";
       checkHealth();
     } catch (Exception e) {
+      health = "Monitoring could not start. Open Setup and review permissions.";
       store.log("Monitoring failed", e.toString(), "failed");
       stopSelf();
     }
-    return START_NOT_STICKY;
+    return START_STICKY;
+  }
+
+  private String accessKey() {
+    StringBuilder key = new StringBuilder();
+    for (String permission :
+        new String[] {
+          android.Manifest.permission.READ_PHONE_STATE,
+          android.Manifest.permission.READ_CALL_LOG,
+          android.Manifest.permission.RECEIVE_SMS,
+          android.Manifest.permission.SEND_SMS,
+          android.Manifest.permission.ACCESS_FINE_LOCATION,
+          android.Manifest.permission.ACCESS_BACKGROUND_LOCATION
+        }) key.append(Readiness.has(this, permission));
+    return key.append(Readiness.locationOn(this))
+        .append(getSystemService(NotificationManager.class).areNotificationsEnabled())
+        .toString();
   }
 
   public void accept(RuleEngine.Event event) {
     if (!running) return;
+    final int acceptedGeneration = generation;
     worker.execute(
         () -> {
           PowerManager.WakeLock lock =
@@ -104,11 +144,16 @@ public final class MonitorService extends Service {
                   .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "WhenThen:event");
           try {
             lock.acquire(30000);
-            if (!running) return;
+            if (!running || acceptedGeneration != generation) return;
             List<Rule> hits = engine.accept(store.rules(), event, System.currentTimeMillis());
             store.engineState(engine.state);
             for (Rule rule : hits) {
-              if (!running) break;
+              if (!running || acceptedGeneration != generation) break;
+              List<String> blockers = Readiness.missing(this, rule);
+              if (!blockers.isEmpty()) {
+                store.log(rule.name, String.join("\n", blockers), "blocked");
+                continue;
+              }
               runner.run(rule);
             }
           } catch (Exception e) {
@@ -123,6 +168,8 @@ public final class MonitorService extends Service {
     if (!running) return;
     try {
       List<String> missing = new ArrayList<>();
+      if (!getSystemService(NotificationManager.class).areNotificationsEnabled())
+        missing.add("Allow notifications in Setup to see monitoring status.");
       for (Rule r : store.rules())
         if (r.enabled)
           for (String reason : Readiness.missing(this, r)) missing.add(r.name + ": " + reason);
@@ -146,7 +193,7 @@ public final class MonitorService extends Service {
   public static void deliver(Context c, RuleEngine.Event event) {
     MonitorService s = active;
     if (s != null) s.accept(event);
-    else if (new Store(c).prefs().getBoolean("monitorWanted", false)) {
+    else if (Monitoring.wanted(c)) {
       Store st = new Store(c);
       long now = System.currentTimeMillis();
       if (now - st.prefs().getLong("resumePrompt", 0) > 300000) {
@@ -239,31 +286,26 @@ public final class MonitorService extends Service {
 
   private void observeWifi() {
     ConnectivityManager cm = getSystemService(ConnectivityManager.class);
+    final int observedGeneration = generation;
     networkCallback =
-        Build.VERSION.SDK_INT >= 31
-            ? new ConnectivityManager.NetworkCallback(
-                ConnectivityManager.NetworkCallback.FLAG_INCLUDE_LOCATION_INFO) {
-              @Override
-              public void onCapabilitiesChanged(Network n, NetworkCapabilities caps) {
-                main.post(() -> wifi(n, caps));
-              }
+        new ConnectivityManager.NetworkCallback(
+            ConnectivityManager.NetworkCallback.FLAG_INCLUDE_LOCATION_INFO) {
+          @Override
+          public void onCapabilitiesChanged(Network n, NetworkCapabilities caps) {
+            main.post(
+                () -> {
+                  if (observedGeneration == generation) wifi(n, caps);
+                });
+          }
 
-              @Override
-              public void onLost(Network n) {
-                main.post(() -> lost(n));
-              }
-            }
-            : new ConnectivityManager.NetworkCallback() {
-              @Override
-              public void onCapabilitiesChanged(Network n, NetworkCapabilities caps) {
-                main.post(() -> wifi(n, caps));
-              }
-
-              @Override
-              public void onLost(Network n) {
-                main.post(() -> lost(n));
-              }
-            };
+          @Override
+          public void onLost(Network n) {
+            main.post(
+                () -> {
+                  if (observedGeneration == generation) lost(n);
+                });
+          }
+        };
     cm.registerNetworkCallback(
         new NetworkRequest.Builder()
             .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
@@ -282,8 +324,6 @@ public final class MonitorService extends Service {
     if (!running) return;
     WifiInfo info =
         caps.getTransportInfo() instanceof WifiInfo ? (WifiInfo) caps.getTransportInfo() : null;
-    if (info == null && Build.VERSION.SDK_INT < 31)
-      info = getSystemService(WifiManager.class).getConnectionInfo();
     String ssid = info == null ? "" : info.getSSID();
     if (ssid == null || ssid.equals(WifiManager.UNKNOWN_SSID) || ssid.isEmpty()) return;
     if (ssid.length() > 1 && ssid.startsWith("\"") && ssid.endsWith("\""))
@@ -318,15 +358,18 @@ public final class MonitorService extends Service {
 
   private void observeLocation(List<Rule> rules) {
     if (rules.stream().noneMatch(r -> r.enabled && r.when.type.startsWith("waypoint"))) return;
-    if (!Readiness.has(this, android.Manifest.permission.ACCESS_FINE_LOCATION)) {
-      store.log("Places", "Precise location is missing.", "blocked");
+    if (!Readiness.has(this, android.Manifest.permission.ACCESS_FINE_LOCATION)
+        || !Readiness.has(this, android.Manifest.permission.ACCESS_BACKGROUND_LOCATION)) {
+      store.log("Places", "Allow precise location all the time in Setup.", "blocked");
       return;
     }
     LocationManager lm = getSystemService(LocationManager.class);
+    final int observedGeneration = generation;
     locationListener =
         new LocationListener() {
           @Override
           public void onLocationChanged(Location l) {
+            if (!running || observedGeneration != generation) return;
             if (SystemClock.elapsedRealtimeNanos() - l.getElapsedRealtimeNanos() > 60000000000L
                 || !l.hasAccuracy()) return;
             RuleEngine.Event e =
@@ -354,6 +397,7 @@ public final class MonitorService extends Service {
     store.prefs().edit().putBoolean("monitorWanted", false).apply();
     store.log("Monitoring stopped", "Stopped by you. No rule actions will run.", "observed");
     running = false;
+    generation++;
     runner.stopAudio();
     stopForeground(STOP_FOREGROUND_REMOVE);
     stopSelf();
@@ -362,7 +406,22 @@ public final class MonitorService extends Service {
   @Override
   public void onDestroy() {
     running = false;
+    generation++;
     if (active == this) active = null;
+    clearObservers();
+    runner.close();
+    worker.shutdownNow();
+    if (Monitoring.wanted(this)) {
+      store.log(
+          "Monitoring interrupted",
+          "Android may restore the service; open WhenThen if it stays paused.",
+          "blocked");
+      Notices.resumePrompt(this);
+    }
+    super.onDestroy();
+  }
+
+  private void clearObservers() {
     main.removeCallbacksAndMessages(null);
     try {
       if (networkCallback != null)
@@ -378,13 +437,14 @@ public final class MonitorService extends Service {
       if (callObserver != null) getContentResolver().unregisterContentObserver(callObserver);
     } catch (Exception ignored) {
     }
-    runner.close();
-    worker.shutdownNow();
-    if (store.prefs().getBoolean("monitorWanted", false)) {
-      store.log("Monitoring interrupted", "Open WhenThen and start monitoring again.", "blocked");
-      Notices.resumePrompt(this);
-    }
-    super.onDestroy();
+    networkCallback = null;
+    locationListener = null;
+    callObserver = null;
+    networks.clear();
+    connectedSsids.clear();
+    wifiBaseline = false;
+    ringingId = null;
+    ringingNumber = "";
   }
 
   @Override

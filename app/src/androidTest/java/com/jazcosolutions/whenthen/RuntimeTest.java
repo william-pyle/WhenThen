@@ -29,7 +29,8 @@ public class RuntimeTest {
           Manifest.permission.READ_PHONE_STATE,
           Manifest.permission.READ_CALL_LOG,
           Manifest.permission.ACCESS_FINE_LOCATION,
-          Manifest.permission.ACCESS_COARSE_LOCATION);
+          Manifest.permission.ACCESS_COARSE_LOCATION,
+          Manifest.permission.ACCESS_BACKGROUND_LOCATION);
 
   private Context c;
   private Store store;
@@ -109,11 +110,17 @@ public class RuntimeTest {
   }
 
   @Test
-  public void bootPromptsWithoutStartingMonitoring() {
-    store.prefs().edit().putBoolean("monitorWanted", true).commit();
+  public void bootResumesEvenAfterGuiStop() throws Exception {
+    activity.launchActivity(null);
+    Thread.sleep(600);
+    Monitoring.stop(c);
+    Thread.sleep(400);
+    assertFalse(Monitoring.wanted(c));
     new BootReceiver().onReceive(c, new Intent(Intent.ACTION_BOOT_COMPLETED));
-    assertNull(MonitorService.active);
-    assertTrue(store.history().stream().anyMatch(e -> e.title.equals("Restart needed")));
+    Thread.sleep(800);
+    assertNotNull(MonitorService.active);
+    assertTrue(Monitoring.wanted(c));
+    assertTrue(store.history().stream().anyMatch(e -> e.detail.startsWith("Phone restarted")));
     assertTrue(c.getSystemService(NotificationManager.class).getActiveNotifications().length > 0);
   }
 

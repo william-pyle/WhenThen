@@ -35,6 +35,11 @@ public final class Readiness {
           Manifest.permission.ACCESS_FINE_LOCATION,
           "Precise location (also needed for Wi-Fi names)",
           e);
+      need(
+          c,
+          Manifest.permission.ACCESS_BACKGROUND_LOCATION,
+          "Location all the time (automatic Wi-Fi/place monitoring after reboot)",
+          e);
       if (!locationOn(c)) e.add("Turn on the phone's Location setting.");
     }
     if (rule.then != null)
