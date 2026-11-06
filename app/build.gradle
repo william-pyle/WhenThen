@@ -1,0 +1,40 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'com.jazcosolutions.whenthen'
+    testBuildType (project.findProperty('testBuildType') ?: 'debug')
+    compileSdk 36
+    defaultConfig {
+        applicationId 'com.jazcosolutions.whenthen'
+        minSdk 31
+        targetSdk 36
+        versionCode 1
+        versionName '1.0.0'
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+    }
+    def signingFile = rootProject.file('.local/tools/signing.properties')
+    if (signingFile.exists()) {
+        def keys = new Properties()
+        signingFile.withInputStream { keys.load(it) }
+        signingConfigs {
+            personalRelease {
+                storeFile file(keys['storeFile'])
+                storePassword keys['storePassword']
+                keyAlias keys['keyAlias']
+                keyPassword keys['keyPassword']
+            }
+        }
+    }
+    buildTypes { release { minifyEnabled false; if (signingFile.exists()) signingConfig signingConfigs.personalRelease } }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+    testOptions { unitTests.returnDefaultValues = true; animationsDisabled = true }
+    lint { abortOnError true }
+}
+dependencies {
+    implementation 'com.google.code.gson:gson:2.13.1'
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test:runner:1.7.0'
+    androidTestImplementation 'androidx.test:rules:1.7.0'
+    androidTestImplementation 'androidx.test.ext:junit:1.3.0'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.7.0'
+}
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }

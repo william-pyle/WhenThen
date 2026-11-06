@@ -1,0 +1,40 @@
+# Local tools, signing identity, credentials and device state
+.local/
+.env
+.env.*
+!.env.example
+**/local.properties
+**/signing.properties
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.pem
+**/auth.json
+**/credentials.json
+**/tokens.json
+
+# Dependencies, generated builds and local test output
+node_modules/
+.gradle/
+**/build/
+__pycache__/
+*.pyc
+*.log
+*.apk
+*.aab
+*.zip
+dist/
+test-results/
+
+# Editor and OS files
+.idea/
+.vscode/
+.agents/
+.claude/
+.codex/
+AGENTS.md
+agents.md
+CLAUDE.md
+.DS_Store
+Thumbs.db
