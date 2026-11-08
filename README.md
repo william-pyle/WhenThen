@@ -24,6 +24,7 @@ Personal edition · Android **12 or later** · Java and Android Views
 - **Choose from eight actions.** Mute, restore sound, set volume, use emergency loud, play an audio file, show a message or image notification, or send an SMS.
 - **Try before you enable.** Simulation uses the real rule matcher and previews actions without sending texts, changing volume, displaying action notifications, or playing audio.
 - **Keep monitoring ready.** Monitoring starts on the first launch and resumes after a reboot, update, or saved rule change. An ongoing notification and Stop control show its state; blocked rules explain missing access.
+- **Choose places on a map.** Search an address, pan and zoom, tap or drag the pin, and accept the location. A live circle shows the selected radius in feet; no latitude/longitude entry is needed.
 - **Build a template library.** Four JSON starters are included. Import and export templates, or save a rule as a reusable template, without rebuilding the app.
 
 For example: **WHEN** a chosen contact calls three times within five minutes, **THEN** turn up the sound and show a message.
@@ -69,7 +70,7 @@ For an initial trial, open **Try it** and simulate a rule before enabling it. Gr
 
 ## Private by default
 
-Rules, readiness observations, and the latest 300 history entries stay on the phone. There is no account or analytics. Internet access is used to check GitHub releases and download updates; the updater never uploads your rules, contacts, message text, or location. JSON backup and restore use Android's file picker. Exported backups can contain private phone numbers and message text, so keep them private.
+Rules, readiness observations, and the latest 300 history entries stay on the phone. There is no account or analytics. Internet access checks GitHub releases, downloads updates, and displays map tiles from OpenStreetMap while you use the location picker. OpenStreetMap receives requests for the map areas you view and normal network information such as your IP address. Address searches are sent to the geocoding provider configured on your Android device. Your complete rules, contacts, messages, and monitoring history are not uploaded by the updater or map picker. Location monitoring continues locally after you save a point. JSON backup and restore use Android's file picker. Exported backups can contain private phone numbers and message text, so keep them private.
 
 ## How the blocks behave
 
@@ -83,6 +84,21 @@ Rules, readiness observations, and the latest 300 history entries stay on the ph
 - Outgoing SMS is limited to one message per rule/recipient every five minutes and ten messages per hour across the app. It uses the configured or default SMS SIM; unknown sends are not automatically retried.
 - Import replaces the rule collection after confirmation and leaves it paused. Select media files again when moving to another phone.
 
+## Choosing a location and boundary
+
+For **Enter a place** or **Leave a place**, tap **Choose location on map** (or **Change location on map** for a saved point).
+
+1. Search an address or place name and select the matching result. You can also tap **My location**, which requests location permission when needed.
+2. Pan, pinch to zoom, or use **+ / ?**. Tap the map or drag the orange pin to choose the exact point.
+3. Set **Radius (feet)**. The purple circle updates as you type; **Fit circle** shows the whole boundary. A radius of 250 feet extends 250 feet from the pin in every direction.
+4. Give the place a name and tap **Use this location**. Then save the rule in the editor. **Cancel** leaves its previous location and radius unchanged.
+
+The picker supports whole-foot radii from 50 to 100,000 feet, matching the existing rule engine. Coordinates are filled in automatically. Existing saved locations reopen with their pin and radius. Maps and address searches need an internet connection; address-search availability depends on the device's Android provider. A failed search keeps the previous point. The circle shows the configured boundary, not a guarantee of GPS accuracy.
+
+The map uses bundled [Leaflet 1.9.4](https://leafletjs.com/) under its [BSD license](app/src/main/assets/map/leaflet-LICENSE.txt), with [OpenStreetMap attribution](https://www.openstreetmap.org/copyright). No API key or paid map account is required. Tiles use normal HTTP caching and a WhenThen-identifying User-Agent; there is no bulk/offline map download. See the [tile usage policy](https://operations.osmfoundation.org/policies/tiles/) before changing providers or tile-loading behavior.
+
+<p align="center"><img src="docs/images/map-picker-1.0.3.png" alt="WhenThen map picker showing Lincoln Memorial with an orange selected pin and a purple 250-foot boundary circle" width="300"></p>
+
 ## Reusable JSON templates
 
 Open **Explore templates** for **Get through to me**, **Welcome home**, **My emergency word**, and **Before I go**. Each creates an independent, editable rule. Configure its personal fields, save, simulate, and enable it when ready.
@@ -95,6 +111,8 @@ Open **Explore templates** for **Get through to me**, **Welcome home**, **My eme
 The format is `whenthen-templates/1`, with up to 100 templates and a 1 MB limit for both imported files and the complete library. Every template has an `id`, `name`, `description`, and `rule` containing one `when` and 1–20 `then` blocks. Blank personal fields are filled in the editor. Use the [included starter JSON](app/src/main/assets/templates.json) as a complete example. Importing a template never runs or enables its rule.
 
 ## Tested status
+
+Version **1.0.3** passed **52 unit tests** and **48 native emulator tests**. The physical-only audio diagnostic and an opt-in live address lookup are excluded from that native count; the live lookup was run separately and passed. Map tests cover selecting a point, address results and failures, stale searches, zoom/fit, live radius changes, state restoration, cancellation, and saving/reopening the rule. Debug, instrumentation, and signed release builds pass; Android lint reports zero errors. The map was visually reviewed at normal and compact phone sizes, including radius entry with the keyboard open.
 
 Version **1.0.2** passed **49 unit tests** and **37 native emulator tests**, with the physical-only audio diagnostic skipped. Debug, instrumentation, and signed release builds pass; Android lint reports zero errors. All nine event integrations pass using emulator call, SMS, Wi-Fi, and GPS inputs.
 
@@ -183,9 +201,9 @@ Check the release archive's source and private-file exclusions with `python test
 
 GitHub builds, tests, signs, and attaches the APK automatically when you publish a stable release. Signing secrets are already configured for this repository; the private key is never committed.
 
-1. Run `python scripts/set-version.py 1.0.3`, replacing `1.0.3` with your next version. This also increases Android's version code.
+1. Run `python scripts/set-version.py 1.0.4`, replacing `1.0.4` with your next version. This also increases Android's version code.
 2. Commit and push the app changes and `version.properties` to `main`.
-3. Open [Create a release](https://github.com/william-pyle/WhenThen/releases/new), create the matching tag (for example `v1.0.3`) from `main`, add release notes, and publish it as a stable release.
+3. Open [Create a release](https://github.com/william-pyle/WhenThen/releases/new), create the matching tag (for example `v1.0.4`) from `main`, add release notes, and publish it as a stable release.
 4. Wait for [Release APK](https://github.com/william-pyle/WhenThen/actions/workflows/release.yml) to finish successfully. `WhenThen.apk`, the source ZIP, checksums, and `update.json` will appear on the release. The app only offers an update after these files are ready.
 
 A release is ready only when its workflow is green and the APK is attached. Versions without an updater need one manual installation of the updater-enabled APK first.

@@ -961,9 +961,25 @@ public final class MainActivity extends Activity {
     }
     if (t.startsWith("waypoint")) {
       field(p, w, "waypoint", "Place name", 1);
-      add(p, quiet("◎  Use my current location", this::captureLocation), 10);
-      field(p, w, "latitude", "Latitude", 8194 | 4096);
-      field(p, w, "longitude", "Longitude", 8194 | 4096);
+      boolean selected =
+          MapSelection.validPoint(
+              w.number("latitude", Double.NaN), w.number("longitude", Double.NaN));
+      add(
+          p,
+          quiet(
+              selected ? "◎  Change location on map" : "◎  Choose location on map",
+              this::pickLocation),
+          10);
+      add(
+          p,
+          text(
+              selected
+                  ? "Location selected. Open the map to review the pin and boundary."
+                  : "Search an address or tap the map, then use that location.",
+              13,
+              0xFF542A13,
+              false),
+          8);
       field(p, w, "radiusFeet", "Radius in feet", 2);
       add(
           p,
@@ -1115,48 +1131,16 @@ public final class MainActivity extends Activity {
     }
   }
 
-  private void captureLocation() {
-    if (!Readiness.has(this, Manifest.permission.ACCESS_FINE_LOCATION)) {
-      requestPermissions(
-          new String[] {
-            Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION
-          },
-          200);
-      toast("Allow precise location, then tap again.");
-      return;
-    }
-    LocationManager lm = getSystemService(LocationManager.class);
-    if (!lm.isLocationEnabled()) {
-      open(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS));
-      return;
-    }
-    String provider =
-        lm.isProviderEnabled(LocationManager.GPS_PROVIDER)
-            ? LocationManager.GPS_PROVIDER
-            : LocationManager.NETWORK_PROVIDER;
-    CancellationSignal signal = new CancellationSignal();
-    toast("Getting a fresh location…");
-    handler.postDelayed(signal::cancel, 30000);
-    try {
-      lm.getCurrentLocation(
-          provider,
-          signal,
-          getMainExecutor(),
-          l -> {
-            if (l == null) {
-              toast("No fix yet. Try outdoors or enter coordinates.");
-              return;
-            }
-            if (draft != null) {
-              draft.when.set("latitude", l.getLatitude()).set("longitude", l.getLongitude());
-              render();
-              toast(
-                  "Location captured · accuracy " + Math.round(l.getAccuracy() * 3.28084) + " ft");
-            }
-          });
-    } catch (SecurityException e) {
-      alert("Location access changed", "Grant precise location and try again.");
-    }
+  private void pickLocation() {
+    if (draft == null) return;
+    Rule.Piece place = draft.when;
+    startActivityForResult(
+        new Intent(this, MapPickerActivity.class)
+            .putExtra("latitude", place.number("latitude", Double.NaN))
+            .putExtra("longitude", place.number("longitude", Double.NaN))
+            .putExtra("name", place.get("waypoint"))
+            .putExtra("radiusFeet", place.get("radiusFeet")),
+        105);
   }
 
   @android.annotation.SuppressLint(
@@ -1535,6 +1519,27 @@ public final class MainActivity extends Activity {
   @Override
   protected void onActivityResult(int request, int result, Intent data) {
     super.onActivityResult(request, result, data);
+    if (request == 105) {
+      if (result == RESULT_OK
+          && data != null
+          && draft != null
+          && draft.when.type.startsWith("waypoint")) {
+        double latitude = data.getDoubleExtra("latitude", Double.NaN);
+        double longitude = data.getDoubleExtra("longitude", Double.NaN);
+        int radius = MapSelection.radius(data.getStringExtra("radiusFeet"));
+        if (MapSelection.validPoint(latitude, longitude) && radius > 0) {
+          String name = data.getStringExtra("name");
+          draft
+              .when
+              .set("latitude", latitude)
+              .set("longitude", longitude)
+              .set("waypoint", name == null || name.isBlank() ? "Selected place" : name)
+              .set("radiusFeet", radius);
+          render();
+        }
+      }
+      return;
+    }
     if (result != RESULT_OK || data == null || data.getData() == null) return;
     Uri uri = data.getData();
     try {

@@ -149,8 +149,9 @@ public class Rule {
     if (when.type.startsWith("wifi")) required(when, "ssid", "Enter the exact Wi-Fi name.", e);
     if (when.type.startsWith("waypoint")) {
       required(when, "waypoint", "Name this place.", e);
-      range(when, "latitude", -90, 90, false, e);
-      range(when, "longitude", -180, 180, false, e);
+      if (!MapSelection.validPoint(
+          when.number("latitude", Double.NaN), when.number("longitude", Double.NaN)))
+        e.add("Choose a location on the map and tap Use this location.");
       range(when, "radiusFeet", 50, 100000, true, e);
     }
     if (then == null || then.isEmpty() || then.size() > 20) {
