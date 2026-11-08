@@ -71,6 +71,24 @@ public final class Notices {
         });
   }
 
+  public static Notification manualTest(Context c) {
+    channels(c);
+    PendingIntent stop =
+        PendingIntent.getService(
+            c,
+            2,
+            new Intent(c, MonitorService.class).setAction("QUIET"),
+            PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+    return new Notification.Builder(c, "monitor")
+        .setSmallIcon(R.drawable.ic_status)
+        .setContentTitle("WhenThen is testing a block")
+        .setContentText("Running the actions you chose. Monitoring remains paused.")
+        .setContentIntent(open(c, "", ""))
+        .setOngoing(true)
+        .addAction(new Notification.Action.Builder(null, "Stop audio", stop).build())
+        .build();
+  }
+
   public static void message(Context c, String title, String text, String uri) throws Exception {
     channels(c);
     NotificationManager n = c.getSystemService(NotificationManager.class);

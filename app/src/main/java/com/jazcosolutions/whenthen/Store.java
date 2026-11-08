@@ -19,6 +19,7 @@ public final class Store {
   public static class Entry {
     public long at = System.currentTimeMillis();
     public String title, detail, status;
+    public FailureReport.Details diagnostic;
 
     public Entry(String title, String detail, String status) {
       this.title = title;
@@ -109,10 +110,28 @@ public final class Store {
   }
 
   public void log(String title, String detail, String status) {
+    record(title, detail, status, null, "Runtime", null);
+  }
+
+  public void failure(String title, Throwable error, String component, Rule rule) {
+    record(
+        title,
+        error.getMessage() == null ? error.toString() : error.getMessage(),
+        "failed",
+        error,
+        component,
+        rule);
+  }
+
+  private void record(
+      String title, String detail, String status, Throwable error, String component, Rule rule) {
     synchronized (Store.class) {
       try {
         List<Entry> entries = history();
-        entries.add(0, new Entry(title, detail, status));
+        Entry entry = new Entry(title, detail, status);
+        if (FailureReport.reportable(status))
+          entry.diagnostic = FailureReport.capture(context, entry, component, error, rule);
+        entries.add(0, entry);
         while (entries.size() > 300) entries.remove(entries.size() - 1);
         write("history.json", entries);
       } catch (Exception e) {

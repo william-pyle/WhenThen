@@ -37,7 +37,7 @@ public final class MainActivity extends Activity {
   private Store store;
   private TemplateLibrary templateLibrary;
   AppUpdater updates;
-  private String page = "rules";
+  private String page = "overview";
   private Rule draft;
   private String exportText;
   private int pickIndex = -2;
@@ -64,7 +64,9 @@ public final class MainActivity extends Activity {
         .setSystemUiVisibility(
             View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
     if (state != null) {
-      page = state.getString("page", "rules");
+      page = state.getString("page", "overview");
+      if (page.equals("rules")) page = "overview";
+      if (page.equals("lab")) page = "blocks";
       String saved = state.getString("draft");
       if (saved != null) draft = new Gson().fromJson(saved, Rule.class);
       pickIndex = state.getInt("pickIndex", -2);
@@ -135,13 +137,13 @@ public final class MainActivity extends Activity {
               "Leave",
               (d, w) -> {
                 draft = null;
-                page = "rules";
+                page = "blocks";
                 render();
               })
           .setNegativeButton("Keep building", null)
           .show();
-    } else if (!page.equals("rules")) {
-      page = "rules";
+    } else if (!page.equals("overview")) {
+      page = "overview";
       render();
     } else finish();
   }
@@ -247,6 +249,21 @@ public final class MainActivity extends Activity {
     parent.addView(view, params);
   }
 
+  private LinearLayout connectedStack() {
+    // Lower bricks sit behind the brick above, so their studs enter its underside.
+    return new LinearLayout(this) {
+      {
+        setOrientation(VERTICAL);
+        setChildrenDrawingOrderEnabled(true);
+      }
+
+      @Override
+      protected int getChildDrawingOrder(int count, int position) {
+        return count - 1 - position;
+      }
+    };
+  }
+
   private TextView pill(String label, int color, int fg) {
     TextView t = text(label, 12, fg, true);
     t.setBackground(round(color, 12));
@@ -299,12 +316,14 @@ public final class MainActivity extends Activity {
     nav = row();
     nav.setPadding(dp(10), dp(8), dp(10), dp(10));
     nav.setBackgroundColor(Color.WHITE);
-    String[] tabs = {"rules", "lab", "activity", "setup"};
-    String[] labels = {"▦  Rules", "✦  Try it", "◷  Activity", "⚙  Setup"};
+    String[] tabs = {"overview", "blocks", "activity", "setup"};
+    String[] labels = {"Overview", "Blocks", "Activity", "Setup"};
     for (int n = 0; n < tabs.length; n++) {
       String dest = tabs[n];
       Button b = quiet(labels[n], () -> navigate(dest));
       b.setTextSize(12);
+      b.setContentDescription(labels[n]);
+      b.setSelected(page.equals(dest));
       b.setPadding(0, dp(8), 0, dp(8));
       b.setBackground(round(page.equals(dest) ? 0xFFEDE6FC : Color.WHITE, 14));
       LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, dp(48), 1);
@@ -322,8 +341,8 @@ public final class MainActivity extends Activity {
           case "activity":
             activity();
             break;
-          case "lab":
-            lab();
+          case "blocks":
+            blocks();
             break;
           case "templates":
             templatePage();
@@ -383,13 +402,11 @@ public final class MainActivity extends Activity {
     LinearLayout labels = column();
     LinearLayout whenBrick = block(0xFFFFA233), thenBrick = block(0xFFB88AF0);
     add(whenBrick, text("WHEN  something happens", 13, 0xFF442004, true), 0);
-    add(thenBrick, text("THEN  make it happen", 13, 0xFF291143, true), 0);
+    add(thenBrick, text("THEN  do something", 13, 0xFF291143, true), 0);
     connectedBlock(labels, whenBrick, true, 16);
     connectedBlock(labels, thenBrick, false, -6);
     add(hero, labels, 0);
     add(body, hero, 6);
-    List<Rule> rules = store.rules();
-    long enabled = rules.stream().filter(r -> r.enabled).count();
     boolean active = MonitorService.active != null;
     LinearLayout status = card(active ? 0xFFE0F5EC : 0xFFFFF0D9);
     monitorCard = status;
@@ -414,69 +431,6 @@ public final class MainActivity extends Activity {
         body,
         button("+  Build a rule", PURPLE, this::newRule),
         quiet("Explore templates", this::templates));
-    add(body, text("Your building blocks", 21, INK, true), 24);
-    if (rules.isEmpty()) {
-      LinearLayout empty = card(Color.WHITE);
-      add(empty, text("Your first little superpower", 19, INK, true), 0);
-      add(
-          empty,
-          text(
-              "Try: when someone calls repeatedly, turn up the sound. Start with a template or"
-                  + " build your own.",
-              15,
-              MUTED,
-              false),
-          8);
-      add(empty, quiet("Choose a starter", this::templates), 16);
-      add(body, empty, 12);
-    }
-    for (Rule r : rules) {
-      LinearLayout c = card(Color.WHITE);
-      LinearLayout heading = row();
-      TextView name = text(r.name, 18, INK, true);
-      heading.addView(name, new LinearLayout.LayoutParams(0, -2, 1));
-      Switch sw = new Switch(this);
-      sw.setContentDescription("Enable " + r.name);
-      sw.setChecked(r.enabled);
-      sw.setOnCheckedChangeListener(
-          (v, checked) -> {
-            if (checked) {
-              List<String> missing = Readiness.missing(this, r);
-              if (!missing.isEmpty()) {
-                sw.setChecked(false);
-                alert("Finish setup first", String.join("\n", missing));
-                return;
-              }
-            }
-            r.enabled = checked;
-            saveChangedRule(r);
-          });
-      heading.addView(sw);
-      add(c, heading, 0);
-      add(c, pill("WHEN   " + Rule.label(r.when.type), 0xFFFFE9DA, ORANGE), 10);
-      for (Rule.Piece a : r.then)
-        add(c, pill("THEN   " + Rule.label(a.type), 0xFFEFE8FF, PURPLE), 5);
-      add(
-          c,
-          text(
-              r.enabled
-                  ? "Enabled · device verification still required"
-                  : "Paused · ready to customize",
-              12,
-              MUTED,
-              false),
-          10);
-      pair(
-          c,
-          quiet(
-              "Edit blocks",
-              () -> {
-                draft = Store.copy(r);
-                editorPage();
-              }),
-          quiet("More", () -> ruleMenu(r)));
-      add(body, c, 12);
-    }
   }
 
   private void startMonitor() {
@@ -542,22 +496,21 @@ public final class MainActivity extends Activity {
     new AlertDialog.Builder(this)
         .setTitle(r.name)
         .setItems(
-            new String[] {"Duplicate", "Try in simulator", "Save as template", "Delete"},
+            new String[] {"Test", "Try in simulator", "Duplicate", "Save as template", "Delete"},
             (d, n) -> {
-              if (n == 0) {
+              if (n == 0) testRule(r);
+              else if (n == 1) simulate(r);
+              else if (n == 2) {
                 Rule copy = Store.copy(r);
                 copy.id = UUID.randomUUID().toString();
                 copy.name = r.name + " copy";
                 copy.enabled = false;
                 draft = copy;
                 editorPage();
-              } else if (n == 1) {
-                page = "lab";
-                render();
-              } else if (n == 2) saveAsTemplate(r);
+              } else if (n == 3) saveAsTemplate(r);
               else
                 new AlertDialog.Builder(this)
-                    .setTitle("Delete this rule?")
+                    .setTitle("Delete this block?")
                     .setMessage(r.name)
                     .setPositiveButton(
                         "Delete",
@@ -570,6 +523,42 @@ public final class MainActivity extends Activity {
                         })
                     .setNegativeButton("Keep", null)
                     .show();
+            })
+        .show();
+  }
+
+  private void testRule(Rule rule) {
+    new AlertDialog.Builder(this)
+        .setTitle("Run a real test?")
+        .setMessage(FlowSummary.testDescription(rule))
+        .setNegativeButton("Cancel", null)
+        .setPositiveButton(
+            "Run test",
+            (d, w) -> {
+              List<String> missing = Readiness.missingActions(this, rule);
+              if (!missing.isEmpty()) {
+                store.log(rule.name, String.join("\n", missing), "blocked");
+                alert("Finish setup for these actions", String.join("\n", missing));
+                return;
+              }
+              try {
+                startForegroundService(
+                    new Intent(this, MonitorService.class)
+                        .setAction("TEST")
+                        .putExtra("ruleId", rule.id));
+                toast("Test started. See Activity for the results.");
+                page = "activity";
+                render();
+                handler.postDelayed(
+                    () -> {
+                      if (draft == null && page.equals("activity") && !isFinishing()) render();
+                    },
+                    900);
+              } catch (RuntimeException error) {
+                store.failure(rule.name, error, "Manual test startup", rule);
+                alert(
+                    "Test could not start", "See Activity for details and a GitHub report button.");
+              }
             })
         .show();
   }
@@ -696,7 +685,7 @@ public final class MainActivity extends Activity {
   }
 
   private void editorPage() {
-    page = "rules";
+    page = "blocks";
     render();
   }
 
@@ -1123,7 +1112,7 @@ public final class MainActivity extends Activity {
       store.save(rules);
       resumeForChanges();
       draft = null;
-      page = "rules";
+      page = "blocks";
       render();
       toast("Saved. Monitoring resumes automatically; enable new rules after Setup.");
     } catch (Exception ex) {
@@ -1150,8 +1139,7 @@ public final class MainActivity extends Activity {
     title(
         "GET YOUR PIECES READY",
         "Phone setup",
-        "Grant only the access your rules need. Green access checks are not a completed emergency"
-            + " test.");
+        "A check means access is ready. Tap a permission for details, or its button to change it.");
     LinearLayout updateCard = card(0xFFEDE6FC);
     add(updateCard, text("App updates", 20, INK, true), 0);
     updateStatus = text(updates.status(), 14, MUTED, false);
@@ -1166,7 +1154,6 @@ public final class MainActivity extends Activity {
             false),
         8);
     add(updateCard, quiet("Check for updates", () -> updates.check(true)), 12);
-    add(body, updateCard, 14);
     setupItem(
         "Notifications",
         "Shows monitoring status and rule messages.",
@@ -1181,38 +1168,32 @@ public final class MainActivity extends Activity {
                     .putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName()));
         });
     setupItem(
-        "Calls & caller identity",
+        "Calls & caller ID",
         "Phone state plus call log. Your installer may restrict call-log access.",
         Readiness.has(this, Manifest.permission.READ_PHONE_STATE)
             && Readiness.has(this, Manifest.permission.READ_CALL_LOG),
         () ->
-            requestPermissions(
-                new String[] {
-                  Manifest.permission.READ_PHONE_STATE, Manifest.permission.READ_CALL_LOG
-                },
-                200));
+            permissionAccess(
+                Manifest.permission.READ_PHONE_STATE, Manifest.permission.READ_CALL_LOG));
     setupItem(
         "Receive texts",
         "Incoming SMS only; RCS and chat apps use different systems.",
         Readiness.has(this, Manifest.permission.RECEIVE_SMS),
-        () -> requestPermissions(new String[] {Manifest.permission.RECEIVE_SMS}, 200));
+        () -> permissionAccess(Manifest.permission.RECEIVE_SMS));
     setupItem(
         "Send texts",
         "Automatic outgoing SMS for enabled Send a text blocks.",
         Readiness.has(this, Manifest.permission.SEND_SMS),
-        () -> requestPermissions(new String[] {Manifest.permission.SEND_SMS}, 200));
+        () -> permissionAccess(Manifest.permission.SEND_SMS));
     setupItem(
-        "Precise location & Wi-Fi names",
+        "Location & Wi-Fi",
         "Used for places and SSID identity. Turn Location on too.",
         Readiness.has(this, Manifest.permission.ACCESS_FINE_LOCATION) && Readiness.locationOn(this),
         () -> {
           if (!Readiness.has(this, Manifest.permission.ACCESS_FINE_LOCATION))
-            requestPermissions(
-                new String[] {
-                  Manifest.permission.ACCESS_FINE_LOCATION,
-                  Manifest.permission.ACCESS_COARSE_LOCATION
-                },
-                200);
+            permissionAccess(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION);
           else open(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS));
         });
     setupItem(
@@ -1231,7 +1212,7 @@ public final class MainActivity extends Activity {
                   Uri.parse("package:" + getPackageName())));
         });
     setupItem(
-        "Do Not Disturb access",
+        "Do Not Disturb",
         "Allows Android-permitted ringer changes. Other DND rules remain in effect.",
         Readiness.dndAccess(this),
         () -> open(new Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)));
@@ -1244,69 +1225,28 @@ public final class MainActivity extends Activity {
                 new Intent(
                     Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
                     Uri.parse("package:" + getPackageName()))));
-    LinearLayout samsung = card(0xFFFFF0D9);
-    add(samsung, text("One more step on Samsung", 18, INK, true), 0);
-    add(
-        samsung,
-        text(
-            "Settings → Battery → Background usage limits. Remove WhenThen from Sleeping and Deep"
-                + " sleeping apps, then add it to Never sleeping apps (labels may vary). After"
-                + " first installation, open WhenThen once and complete Setup. Reboot and update"
-                + " restart monitoring automatically. After an Android force-stop, open the app"
-                + " again.",
-            14,
-            MUTED,
-            false),
-        8);
-    add(
-        samsung,
+    Button samsung =
         quiet(
-            "Open app settings",
+            "Samsung battery help",
             () ->
-                open(
-                    new Intent(
-                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                        Uri.parse("package:" + getPackageName())))),
-        12);
-    add(body, samsung, 14);
-    LinearLayout verification = card(Color.WHITE);
-    add(verification, text("Your real-phone checklist", 20, INK, true), 0);
-    add(
-        verification,
-        text(
-            "Verify with a trusted test contact before relying on an emergency rule. Checks below"
-                + " record your observations; permission grants alone never mark these passed.",
-            14,
-            MUTED,
-            false),
-        8);
-    String[] checks = {
-      "Incoming, repeated & missed calls",
-      "SMS receive and outgoing delivery",
-      "Locked-screen speaker audio",
-      "DND, silent mode & Bluetooth",
-      "Home Wi-Fi transitions",
-      "Place entry and exit",
-      "Extended idle & battery saver",
-      "Reboot / interruption recovery"
-    };
-    for (int n = 0; n < checks.length; n++) {
-      String key = "verified_" + n;
-      CheckBox box = new CheckBox(this);
-      box.setText(checks[n]);
-      box.setTextColor(INK);
-      box.setChecked(store.prefs().getBoolean(key, false));
-      box.setOnCheckedChangeListener(
-          (v, checked) ->
-              store
-                  .prefs()
-                  .edit()
-                  .putBoolean(key, checked)
-                  .putLong(key + "_at", System.currentTimeMillis())
-                  .apply());
-      add(verification, box, 6);
-    }
-    add(body, verification, 14);
+                new AlertDialog.Builder(this)
+                    .setTitle("Keep WhenThen awake")
+                    .setMessage(
+                        "On Samsung: Settings → Battery → Background usage limits. Add WhenThen to"
+                            + " Never sleeping apps and remove it from Sleeping or Deep sleeping"
+                            + " apps. Labels vary by phone. After an Android force-stop, open"
+                            + " WhenThen again.")
+                    .setPositiveButton(
+                        "Open settings",
+                        (d, w) ->
+                            open(
+                                new Intent(
+                                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                    Uri.parse("package:" + getPackageName()))))
+                    .setNegativeButton("Close", null)
+                    .show());
+    add(body, samsung, 10);
+    add(body, updateCard, 14);
     LinearLayout backup = card(0xFFE7F4F1);
     add(backup, text("Keep your creations", 20, INK, true), 0);
     add(
@@ -1350,11 +1290,48 @@ public final class MainActivity extends Activity {
   }
 
   private void setupItem(String heading, String detail, boolean granted, Runnable action) {
-    LinearLayout l = card(Color.WHITE);
-    add(l, text((granted ? "✓  " : "○  ") + heading, 18, granted ? TEAL : INK, true), 0);
-    add(l, text(detail, 14, MUTED, false), 7);
-    add(l, quiet(granted ? "Review access" : "Set up", action), 12);
-    add(body, l, 12);
+    LinearLayout line = row();
+    line.setPadding(dp(12), dp(3), dp(6), dp(3));
+    line.setBackground(round(Color.WHITE, 12));
+    TextView check = text(granted ? "✓" : "○", 18, granted ? TEAL : ORANGE, true);
+    check.setContentDescription(granted ? "Access ready" : "Access needed");
+    line.addView(check, new LinearLayout.LayoutParams(dp(27), -2));
+    TextView label = text(heading, 14, INK, true);
+    label.setMaxLines(2);
+    label.setMinHeight(dp(48));
+    label.setGravity(Gravity.CENTER_VERTICAL);
+    label.setContentDescription(heading + ". " + (granted ? "Ready. " : "Needs access. ") + detail);
+    label.setOnClickListener(v -> alert(heading, detail));
+    label.setFocusable(true);
+    line.addView(label, new LinearLayout.LayoutParams(0, -2, 1));
+    Button access = quiet(granted ? "Review" : "Allow", action);
+    access.setTextSize(12);
+    access.setMinHeight(dp(44));
+    access.setPadding(dp(8), dp(5), dp(8), dp(5));
+    access.setContentDescription((granted ? "Review " : "Allow ") + heading);
+    line.addView(access, new LinearLayout.LayoutParams(dp(76), dp(44)));
+    add(body, line, 5);
+  }
+
+  private void permissionAccess(String... permissions) {
+    boolean granted = Arrays.stream(permissions).allMatch(p -> Readiness.has(this, p));
+    boolean permanentlyDenied =
+        Arrays.stream(permissions)
+            .anyMatch(
+                p ->
+                    !Readiness.has(this, p)
+                        && store.prefs().getBoolean("requested_" + p, false)
+                        && !shouldShowRequestPermissionRationale(p));
+    if (granted || permanentlyDenied) {
+      open(
+          new Intent(
+              Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+              Uri.parse("package:" + getPackageName())));
+    } else {
+      for (String permission : permissions)
+        store.prefs().edit().putBoolean("requested_" + permission, true).apply();
+      requestPermissions(permissions, 200);
+    }
   }
 
   private void activity() {
@@ -1383,7 +1360,7 @@ public final class MainActivity extends Activity {
       add(
           body,
           text(
-              "Nothing yet. Try a simulation, or start monitoring an enabled rule.",
+              "Nothing yet. Test a block from its More menu, or enable it for automatic runs.",
               16,
               MUTED,
               false),
@@ -1406,52 +1383,84 @@ public final class MainActivity extends Activity {
               MUTED,
               false),
           10);
+      if (FailureReport.reportable(e.status))
+        add(
+            c,
+            quiet(
+                "Report on GitHub",
+                () ->
+                    startActivity(
+                        new Intent(this, FailureReportActivity.class)
+                            .putExtra("entry", Store.json(e)))),
+            12);
       add(body, c, 12);
     }
   }
 
-  private void lab() {
-    title(
-        "A SAFE LITTLE SANDBOX",
-        "Try your blocks",
-        "Simulate a matching event. No texts are sent, no volume changes, and no files play.");
+  private void blocks() {
+    title("YOUR CONNECTED FLOWS", "Blocks", "");
+    pair(
+        body,
+        button("Add Block", PURPLE, this::newRule),
+        quiet("Explore Templates", this::templates));
     List<Rule> rules = store.rules();
     if (rules.isEmpty()) {
-      add(body, button("Build your first rule", PURPLE, this::newRule), 20);
+      add(body, text("No blocks yet. Add a block or start with a template.", 16, MUTED, false), 24);
       return;
     }
-    for (Rule r : rules) {
-      LinearLayout c = block(0xFFB8E9DD);
-      add(c, text(r.name, 22, INK, true), 0);
-      add(
-          c,
-          text(
-              "WHEN "
-                  + Rule.label(r.when.type)
-                  + "\nTHEN "
-                  + r.then.size()
-                  + " action"
-                  + (r.then.size() == 1 ? "" : "s"),
-              14,
-              INK,
-              false),
-          8);
-      add(c, button("▶  Simulate this flow", TEAL, () -> simulate(r)), 14);
-      add(body, c, 16);
+    for (Rule rule : rules) {
+      LinearLayout card = block(0xFFB8E9DD);
+      add(card, text(rule.name, 21, INK, true), 0);
+      Switch enabled = new Switch(this);
+      enabled.setText(rule.enabled ? "Enabled" : "Disabled");
+      enabled.setTextColor(INK);
+      enabled.setMinHeight(dp(48));
+      enabled.setContentDescription("Enable " + rule.name);
+      enabled.setChecked(rule.enabled);
+      enabled.setOnCheckedChangeListener(
+          (view, checked) -> {
+            if (checked == rule.enabled) return;
+            if (checked) {
+              List<String> missing = Readiness.missing(this, rule);
+              if (!missing.isEmpty()) {
+                enabled.setChecked(false);
+                alert("Finish setup first", String.join("\n", missing));
+                return;
+              }
+            }
+            rule.enabled = checked;
+            saveChangedRule(rule);
+            enabled.setText(checked ? "Enabled" : "Disabled");
+          });
+      add(card, enabled, 4);
+      LinearLayout chain = connectedStack();
+      chain.setClipChildren(false);
+      chain.setClipToPadding(false);
+      compactPiece(chain, "WHEN", FlowSummary.when(rule.when), true, 0);
+      for (int i = 0; i < rule.then.size(); i++)
+        compactPiece(chain, "THEN " + (i + 1), FlowSummary.then(rule.then.get(i)), false, -23);
+      add(card, chain, 8);
+      pair(
+          card,
+          quiet(
+              "Edit",
+              () -> {
+                draft = Store.copy(rule);
+                editorPage();
+              }),
+          quiet("More", () -> ruleMenu(rule)));
+      add(body, card, 18);
     }
-    LinearLayout note = card(Color.WHITE);
-    add(note, text("What simulation proves", 18, INK, true), 0);
-    add(
-        note,
-        text(
-            "It exercises the actual matcher and lists the planned actions. Phone permissions,"
-                + " carrier delivery, GPS, Wi-Fi identity and audible output need separate device"
-                + " tests.",
-            14,
-            MUTED,
-            false),
-        8);
-    add(body, note, 18);
+  }
+
+  private void compactPiece(
+      LinearLayout parent, String kind, String summary, boolean when, int gap) {
+    LinearLayout piece = block(when ? 0xFFFFA233 : 0xFFB88AF0);
+    piece.setPadding(dp(12), dp(32), dp(12), dp(24));
+    add(piece, text(kind, 11, when ? 0xFF542A13 : 0xFF352458, true), 0);
+    TextView details = text(summary, 14, INK, true);
+    add(piece, details, 3);
+    connectedBlock(parent, piece, when, gap);
   }
 
   private void simulate(Rule original) {

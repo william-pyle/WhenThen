@@ -17,6 +17,9 @@ public final class MonitorService extends Service {
   public static volatile MonitorService active;
   public static volatile String health = "";
   private final Handler main = new Handler(Looper.getMainLooper());
+  private final Handler testHandler = new Handler(Looper.getMainLooper());
+  private final Set<String> manualTests = new HashSet<>();
+  private boolean manualOnly;
   private final ExecutorService worker = Executors.newSingleThreadExecutor();
   private Store store;
   private RuleEngine engine;
@@ -58,6 +61,10 @@ public final class MonitorService extends Service {
       if (!running) stopSelf();
       return running ? START_STICKY : START_NOT_STICKY;
     }
+    if ("TEST".equals(action)) {
+      testOnce(i.getStringExtra("ruleId"));
+      return running ? START_STICKY : START_NOT_STICKY;
+    }
     try {
       List<Rule> rules = store.rules();
       String nextConfiguration = Store.json(rules) + accessKey();
@@ -93,6 +100,7 @@ public final class MonitorService extends Service {
           });
       configuration = nextConfiguration;
       running = true;
+      manualOnly = false;
       active = this;
       startAt = System.currentTimeMillis();
       store.prefs().edit().putBoolean("monitorWanted", true).apply();
@@ -112,10 +120,78 @@ public final class MonitorService extends Service {
       checkHealth();
     } catch (Exception e) {
       health = "Monitoring could not start. Open Setup and review permissions.";
-      store.log("Monitoring failed", e.toString(), "failed");
+      store.failure("Monitoring failed", e, "Monitoring startup", null);
       stopSelf();
     }
     return START_STICKY;
+  }
+
+  /**
+   * Explicit user test: run this flow once without mutating trigger state or its enabled switch.
+   */
+  private void testOnce(String id) {
+    try {
+      if (!running) {
+        manualOnly = true;
+        int types =
+            Build.VERSION.SDK_INT >= 34 ? ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE : 0;
+        startForeground(1, Notices.manualTest(this), types);
+      }
+      Rule selected = store.rules().stream().filter(r -> r.id.equals(id)).findFirst().orElse(null);
+      if (selected == null) {
+        store.log("Test cancelled", "The selected block no longer exists.", "blocked");
+        finishTest(null);
+        return;
+      }
+      if (!manualTests.add(id)) {
+        store.log(selected.name, "A test of this block is already running.", "blocked");
+        return;
+      }
+      Rule rule = Store.copy(selected);
+      final int acceptedGeneration = generation;
+      final ActionRunner executingRunner = runner;
+      worker.execute(
+          () -> {
+            long keepAlive = 0;
+            PowerManager.WakeLock lock =
+                getSystemService(PowerManager.class)
+                    .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "WhenThen:manual-test");
+            try {
+              lock.acquire(30000);
+              if (acceptedGeneration != generation) return;
+              List<String> blockers = Readiness.missingActions(this, rule);
+              if (!blockers.isEmpty()) {
+                store.log(rule.name, String.join("\n", blockers), "blocked");
+                return;
+              }
+              store.log(
+                  rule.name,
+                  "Manual test: WHEN satisfied by you; executing the real THEN actions once."
+                      + " Enabled switch and trigger history are unchanged.",
+                  "test");
+              executingRunner.run(rule);
+              for (Rule.Piece p : rule.then)
+                if (p.type.equals("play_audio"))
+                  keepAlive = Math.max(keepAlive, (long) p.number("seconds", 30) * 1000 + 5000);
+            } catch (Exception error) {
+              store.failure(rule.name, error, "Manual test", rule);
+            } finally {
+              if (lock.isHeld()) lock.release();
+              testHandler.postDelayed(() -> finishTest(id), keepAlive);
+            }
+          });
+    } catch (Exception error) {
+      store.failure("Block test failed", error, "Manual test startup", null);
+      finishTest(id);
+    }
+  }
+
+  private void finishTest(String id) {
+    if (id != null) manualTests.remove(id);
+    if (!running && manualTests.isEmpty()) {
+      stopForeground(STOP_FOREGROUND_REMOVE);
+      stopSelf();
+    }
   }
 
   private String accessKey() {
@@ -157,7 +233,7 @@ public final class MonitorService extends Service {
               runner.run(rule);
             }
           } catch (Exception e) {
-            store.log("Event processing", e.toString(), "failed");
+            store.failure("Event processing", e, "Event processing", null);
           } finally {
             if (lock.isHeld()) lock.release();
           }
@@ -410,8 +486,10 @@ public final class MonitorService extends Service {
     if (active == this) active = null;
     clearObservers();
     runner.close();
+    testHandler.removeCallbacksAndMessages(null);
+    manualTests.clear();
     worker.shutdownNow();
-    if (Monitoring.wanted(this)) {
+    if (Monitoring.wanted(this) && !manualOnly) {
       store.log(
           "Monitoring interrupted",
           "Android may restore the service; open WhenThen if it stays paused.",

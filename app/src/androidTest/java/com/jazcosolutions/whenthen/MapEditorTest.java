@@ -45,7 +45,8 @@ public class MapEditorTest {
     rule.then.add(Rule.action("show_message").set("message", "Remember the keys"));
     store.save(List.of(rule));
     activity.launchActivity(null);
-    onView(withText("Edit blocks")).perform(scrollTo(), click());
+    onView(withContentDescription("Blocks")).perform(click());
+    onView(withText("Edit")).perform(scrollTo(), click());
   }
 
   private void openPicker() throws Exception {
@@ -109,7 +110,8 @@ public class MapEditorTest {
     assertEquals("500", saved.when.get("radiusFeet"));
     assertTrue(saved.errors().isEmpty());
     assertFalse(saved.enabled);
-    onView(withText("Edit blocks")).perform(scrollTo(), click());
+    onView(withContentDescription("Blocks")).perform(click());
+    onView(withText("Edit")).perform(scrollTo(), click());
     openPicker();
     onView(withContentDescription("Place name")).check(matches(withText("Chosen park")));
     onView(withContentDescription("Radius in feet")).check(matches(withText("500")));

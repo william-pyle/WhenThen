@@ -63,7 +63,8 @@ public class AppTest {
     onView(withText("Save my rule")).perform(scrollTo(), click());
     assertEquals(1, store.rules().size());
     assertFalse(store.rules().get(0).enabled);
-    onView(withText("Edit blocks")).perform(scrollTo(), click());
+    onView(withContentDescription("Blocks")).perform(click());
+    onView(withText("Edit")).perform(scrollTo(), click());
     onView(withContentDescription("Rule name")).check(matches(withText("Call home")));
     assertEquals("Please call home", store.rules().get(0).then.get(0).get("message"));
   }
@@ -98,7 +99,8 @@ public class AppTest {
     r.then.add(Rule.action("set_volume").set("percent", 42).set("channels", "media"));
     store.save(List.of(r));
     activity.launchActivity(null);
-    onView(withText("Edit blocks")).perform(scrollTo(), click());
+    onView(withContentDescription("Blocks")).perform(click());
+    onView(withText("Edit")).perform(scrollTo(), click());
     onView(withContentDescription("Move action 2 up")).perform(scrollTo(), click());
     onView(withText("Save my rule")).perform(scrollTo(), click());
     Rule saved = store.rules().get(0);
@@ -111,8 +113,9 @@ public class AppTest {
   public void simulationRunsMatcherWithoutDispatch() {
     store.save(List.of(sample()));
     activity.launchActivity(null);
-    onView(withText("✦  Try it")).perform(click());
-    onView(withText("▶  Simulate this flow")).perform(scrollTo(), click());
+    onView(withContentDescription("Blocks")).perform(click());
+    onView(withText("More")).perform(scrollTo(), click());
+    onView(withText("Try in simulator")).perform(click());
     onView(withText("Your flow, step by step")).check(matches(isDisplayed()));
     assertEquals("simulation", store.history().get(0).status);
     assertTrue(store.history().get(0).detail.contains("WHEN matched"));
@@ -159,7 +162,8 @@ public class AppTest {
     activity.getActivity().runOnUiThread(() -> activity.getActivity().recreate());
     Thread.sleep(600);
     assertEquals("Text rescue", store.rules().get(0).name);
-    onView(withText("Your building blocks")).perform(scrollTo()).check(matches(isDisplayed()));
+    onView(withContentDescription("Blocks")).perform(click());
+    onView(withText("Add Block")).check(matches(isDisplayed()));
   }
 
   @Test
@@ -180,9 +184,9 @@ public class AppTest {
   @Test
   public void setupAndActivityScreensOpen() {
     activity.launchActivity(null);
-    onView(withText("⚙  Setup")).perform(click());
+    onView(withContentDescription("Setup")).perform(click());
     onView(withText("Phone setup")).check(matches(isDisplayed()));
-    onView(withText("◷  Activity")).perform(click());
-    onView(withText("Activity")).check(matches(isDisplayed()));
+    onView(withContentDescription("Activity")).perform(click());
+    onView(withContentDescription("Activity")).check(matches(isSelected()));
   }
 }

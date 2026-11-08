@@ -37,9 +37,11 @@ public final class BlockDrawable extends Drawable {
     paint.setColor(Color.argb(50, 255, 255, 255));
     c.drawRoundRect(
         new RectF(b.left + 9 * d, top + 4 * d, b.right - 11 * d, top + 6 * d), 2 * d, 2 * d, paint);
-    int studs = Math.min(4, Math.max(2, (int) (b.width() / (66 * d))));
+    // Keep a regular connector spacing across the whole brick, including wide screens.
+    int studs = Math.max(1, (int) ((b.width() - 24 * d) / (42 * d)));
+    float first = b.left + (b.width() - ((studs - 1) * 42 + 29) * d) / 2;
     for (int i = 0; i < studs; i++) {
-      float left = b.left + (23 + 42 * i) * d;
+      float left = first + 42 * i * d;
       paint.setColor(Color.WHITE);
       paint.setShader(
           new LinearGradient(

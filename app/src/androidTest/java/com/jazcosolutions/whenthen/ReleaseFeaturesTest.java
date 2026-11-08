@@ -101,7 +101,8 @@ public class ReleaseFeaturesTest {
       Monitoring.stop(context);
       Thread.sleep(350);
     }
-    onView(withText("Edit blocks")).perform(scrollTo(), click());
+    onView(withContentDescription("Blocks")).perform(click());
+    onView(withText("Edit")).perform(scrollTo(), click());
     onView(withContentDescription("Message to show"))
         .perform(scrollTo(), replaceText("After edit"));
     onView(withText("Save my rule")).perform(scrollTo(), click());
@@ -172,6 +173,7 @@ public class ReleaseFeaturesTest {
     Rule saved = sample();
     store.save(List.of(saved));
     activity.launchActivity(null);
+    onView(withContentDescription("Blocks")).perform(click());
     onView(withText("More")).perform(scrollTo(), click());
     onView(withText("Save as template")).perform(click());
     onView(withContentDescription("Template name")).perform(replaceText("UI reusable flow"));

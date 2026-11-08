@@ -37,6 +37,7 @@ public class AssetActionsTest {
     Assume.assumeTrue(Build.MODEL.contains("sdk") || Build.MODEL.contains("Emulator"));
     c = InstrumentationRegistry.getInstrumentation().getTargetContext();
     store = new Store(c);
+    store.prefs().edit().remove("emergencyUntil").commit();
     activity.launchActivity(null);
     runner = new ActionRunner(c);
   }

@@ -23,6 +23,8 @@ Personal edition · Android **12 or later** · Java and Android Views
 - **React to calls, texts, places, and Wi-Fi.** Nine trigger types cover incoming, missed, and repeated calls; incoming and exact-match SMS; place entry and exit; and connection to or disconnection from a named Wi-Fi network.
 - **Choose from eight actions.** Mute, restore sound, set volume, use emergency loud, play an audio file, show a message or image notification, or send an SMS.
 - **Try before you enable.** Simulation uses the real rule matcher and previews actions without sending texts, changing volume, displaying action notifications, or playing audio.
+- **Test the real actions.** A block's **More → Test** option treats its WHEN as satisfied once and runs its THEN actions after confirmation, including for a disabled block.
+- **Report failures.** Activity offers a reviewed GitHub issue draft with the available error, stack trace, device/app version, and permission state.
 - **Keep monitoring ready.** Monitoring starts on the first launch and resumes after a reboot, update, or saved rule change. An ongoing notification and Stop control show its state; blocked rules explain missing access.
 - **Choose places on a map.** Search an address, pan and zoom, tap or drag the pin, and accept the location. A live circle shows the selected radius in feet; no latitude/longitude entry is needed.
 - **Build a template library.** Four JSON starters are included. Import and export templates, or save a rule as a reusable template, without rebuilding the app.
@@ -31,11 +33,11 @@ For example: **WHEN** a chosen contact calls three times within five minutes, **
 
 ## Inside the app
 
-| Your rules | Build a WHEN | Add THEN actions |
+| Overview | Blocks | Setup |
 | --- | --- | --- |
-| <img src="docs/images/native-home-1.0.2.png" alt="WhenThen home screen" width="250"> | <img src="docs/images/native-builder-1.0.2.png" alt="Repeated-call trigger and its options" width="250"> | <img src="docs/images/native-options-1.0.2.png" alt="Sound and message action blocks" width="250"> |
+| <img src="docs/images/overview-1.0.4.png" alt="Overview with connected WHEN and THEN bricks and monitoring status" width="250"> | <img src="docs/images/blocks-1.0.4.png" alt="Saved block with its condition, connected actions, toggle, Edit and More" width="250"> | <img src="docs/images/setup-1.0.4.png" alt="Compact permission checks and access buttons" width="250"> |
 
-These are screenshots of the native Android app, version 1.0.2.
+These are screenshots of the native Android app, version 1.0.4.
 
 <details>
 <summary>The template library</summary>
@@ -53,7 +55,7 @@ Download `WhenThen.apk` directly on your phone. You do not need Android Studio, 
 1. Open the downloaded APK on your phone. Android may ask you to allow installation from that browser or file manager.
 2. Open **WhenThen → Setup** and grant the permissions needed by your chosen rules. Installer restrictions can make SMS or call-log access unavailable; the app reports missing access.
 3. Set battery access to unrestricted. On Samsung devices, add WhenThen to **Never sleeping apps**; menu names vary by One UI version.
-4. Choose a template or **Build a rule**, configure its options, and add THEN blocks. Save, simulate, then enable the rule.
+4. Open **Blocks → Add Block** or **Explore Templates**, configure its options, and add THEN blocks. Save, preview or test, then enable the block for automatic runs.
 5. Monitoring starts automatically when you first open the app, even while it waits for an enabled rule. Complete Setup and enable the rules you want to run. For Wi-Fi and place rules, grant precise location **all the time** so they can resume after a reboot.
 
 **Pause monitoring** stops the current session. Saving a rule change, rebooting the phone, or installing an update starts monitoring again, including after a previous pause. Simply closing and reopening the app respects a manual pause. Android requires the initial launch before boot receivers work; after **Force stop** in Android settings, open the app again. Battery restrictions and missing permissions can prevent operation; check the visible status and Setup page.
@@ -66,11 +68,30 @@ The first time you update, Android asks you to allow installation from WhenThen.
 
 Updates retain your saved rules and templates. From version 1.0.2, monitoring resumes automatically after installation, including after a previous manual pause. An unavailable network leaves the app usable; a failed or cancelled update keeps the installed version.
 
-For an initial trial, open **Try it** and simulate a rule before enabling it. Grant permissions only for the events and actions you intend to use. Android or your installer may restrict SMS and call-log access, and the app will show those missing capabilities.
+For a preview without phone actions, open a block's **More → Try in simulator**. Grant permissions only for the events and actions you intend to use. Android or your installer may restrict SMS and call-log access, and the app will show those missing capabilities.
+
+## Four pages
+
+- **Overview:** the welcome screen and monitoring status, with quick links to create a rule or explore templates.
+- **Blocks:** all saved flows as connected WHEN and THEN bricks. Each shows its actual requirement and actions, an enabled/disabled toggle, **Edit**, and **More**. **Add Block** and **Explore Templates** are at the top.
+- **Activity:** the local record of runs, tests, and failures. A failed, blocked, or partially failed event offers **Report on GitHub**.
+- **Setup:** compact permission rows with a readiness check and **Allow** or **Review** button. Tap a permission name for its explanation. Samsung battery help, updates, and backups remain available. The old self-reported checklist has been removed.
+
+## Testing a block
+
+Choose **Blocks → More → Test**, review the action list, and tap **Run test**. This performs the **real actions**: it can send an SMS, change volume, play audio, or show notifications. It satisfies WHEN once without waiting for a real call, message, Wi-Fi change, or location crossing. It does not change the block's enabled switch or its automatic trigger history, and a paused monitoring session stays paused. Required action access, SMS limits, and emergency sound protection still apply. Results appear in **Activity**.
+
+**Try in simulator** remains a separate preview that runs the matcher without executing phone actions.
+
+## Reporting a failure
+
+In **Activity**, tap **Report on GitHub** on the failed event. Review or edit the prepared details, then tap **Open GitHub**. Sign in to GitHub if needed and choose **Submit new issue** there. The app never submits issues automatically and contains no GitHub credentials.
+
+New failures include the captured app version, Android version, device model, permission state, error details, and available Java stack trace with causes. Known rule names, contact numbers, message text, places, Wi-Fi names, media paths, and credential patterns are removed from the draft; review the remaining text before making it public. Older history entries can still be reported, but a stack trace cannot be reconstructed if it was never recorded. Long reports use **Copy details** so you can paste the complete draft into GitHub rather than lose details to a URL limit. Cancelling the report leaves the original Activity entry unchanged.
 
 ## Private by default
 
-Rules, readiness observations, and the latest 300 history entries stay on the phone. There is no account or analytics. Internet access checks GitHub releases, downloads updates, and displays map tiles from OpenStreetMap while you use the location picker. OpenStreetMap receives requests for the map areas you view and normal network information such as your IP address. Address searches are sent to the geocoding provider configured on your Android device. Your complete rules, contacts, messages, and monitoring history are not uploaded by the updater or map picker. Location monitoring continues locally after you save a point. JSON backup and restore use Android's file picker. Exported backups can contain private phone numbers and message text, so keep them private.
+Rules, readiness observations, and the latest 300 history entries stay on the phone. There is no app account or analytics. Internet access checks GitHub releases, downloads updates, and displays map tiles from OpenStreetMap while you use the location picker. OpenStreetMap receives requests for the map areas you view and normal network information such as your IP address. Address searches are sent to the geocoding provider configured on your Android device. Your complete rules, contacts, messages, and monitoring history are not uploaded by the updater or map picker. Failure details are shared only when you choose to open the reviewed report in GitHub. Location monitoring continues locally after you save a point. JSON backup and restore use Android's file picker. Exported backups can contain private phone numbers and message text, so keep them private.
 
 ## How the blocks behave
 
@@ -111,6 +132,8 @@ Open **Explore templates** for **Get through to me**, **Welcome home**, **My eme
 The format is `whenthen-templates/1`, with up to 100 templates and a 1 MB limit for both imported files and the complete library. Every template has an `id`, `name`, `description`, and `rule` containing one `when` and 1–20 `then` blocks. Blank personal fields are filled in the editor. Use the [included starter JSON](app/src/main/assets/templates.json) as a complete example. Importing a template never runs or enables its rule.
 
 ## Tested status
+
+Version **1.0.4** passed **60 unit tests** and **59 native emulator tests**, with the physical-only audio diagnostic and opt-in live geocoder skipped. The final 11-test interface regression also passed. Coverage includes real manual action dispatch, confirmation/cancellation, disabled blocks and paused monitoring staying unchanged, SMS repeat and emergency sound protections, captured failures, privacy filtering, and complete long-report copying. Debug, instrumentation, and signed release builds pass; Android lint reports zero errors. Overview, connected Blocks, compact Setup, confirmation dialogs, and failure reports were reviewed at normal and 320 dp phone widths.
 
 Version **1.0.3** passed **52 unit tests** and **48 native emulator tests**. The physical-only audio diagnostic and an opt-in live address lookup are excluded from that native count; the live lookup was run separately and passed. Map tests cover selecting a point, address results and failures, stale searches, zoom/fit, live radius changes, state restoration, cancellation, and saving/reopening the rule. Debug, instrumentation, and signed release builds pass; Android lint reports zero errors. The map was visually reviewed at normal and compact phone sizes, including radius entry with the keyboard open.
 
@@ -201,9 +224,9 @@ Check the release archive's source and private-file exclusions with `python test
 
 GitHub builds, tests, signs, and attaches the APK automatically when you publish a stable release. Signing secrets are already configured for this repository; the private key is never committed.
 
-1. Run `python scripts/set-version.py 1.0.4`, replacing `1.0.4` with your next version. This also increases Android's version code.
+1. Run `python scripts/set-version.py 1.0.5`, replacing `1.0.5` with your next version. This also increases Android's version code.
 2. Commit and push the app changes and `version.properties` to `main`.
-3. Open [Create a release](https://github.com/william-pyle/WhenThen/releases/new), create the matching tag (for example `v1.0.4`) from `main`, add release notes, and publish it as a stable release.
+3. Open [Create a release](https://github.com/william-pyle/WhenThen/releases/new), create the matching tag (for example `v1.0.5`) from `main`, add release notes, and publish it as a stable release.
 4. Wait for [Release APK](https://github.com/william-pyle/WhenThen/actions/workflows/release.yml) to finish successfully. `WhenThen.apk`, the source ZIP, checksums, and `update.json` will appear on the release. The app only offers an update after these files are ready.
 
 A release is ready only when its workflow is green and the APK is attached. Versions without an updater need one manual installation of the updater-enabled APK first.

@@ -42,6 +42,15 @@ public final class Readiness {
           e);
       if (!locationOn(c)) e.add("Turn on the phone's Location setting.");
     }
+    e.addAll(missingActions(c, rule));
+    return new ArrayList<>(new LinkedHashSet<>(e));
+  }
+
+  /** A manual test satisfies WHEN; only action permissions and valid configuration apply. */
+  public static List<String> missingActions(Context c, Rule rule) {
+    List<String> e = new ArrayList<>(rule.errors());
+    if (!c.getSystemService(NotificationManager.class).areNotificationsEnabled())
+      e.add("Allow notifications in Setup.");
     if (rule.then != null)
       for (Rule.Piece p : rule.then) {
         if (p.type.equals("send_sms")) need(c, Manifest.permission.SEND_SMS, "Send SMS", e);

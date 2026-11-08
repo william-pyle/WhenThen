@@ -15,7 +15,6 @@ public final class ActionRunner {
   private MediaPlayer player;
   private AudioFocusRequest focus;
   private Runnable stopTask;
-  private volatile long emergencyUntil;
   private volatile boolean closed;
 
   public ActionRunner(Context c) {
@@ -46,10 +45,11 @@ public final class ActionRunner {
             result = volume(p, rule.priority);
             break;
           case "play_audio":
-            if (rule.priority < 10 && System.currentTimeMillis() < emergencyUntil)
+            if (rule.priority < 10
+                && System.currentTimeMillis() < store.prefs().getLong("emergencyUntil", 0))
               throw new IllegalStateException(
                   "Emergency audio protection is active; normal-priority audio was skipped.");
-            main.post(() -> play(p, rule.name));
+            main.post(() -> play(p, rule));
             result =
                 "Playback queued; see the separate playback result. Audibility needs a phone test.";
             break;
@@ -70,23 +70,20 @@ public final class ActionRunner {
         store.log(rule.name + " · " + Rule.label(p.type), result, "observed");
       } catch (Exception ex) {
         failed++;
-        store.log(
-            rule.name + " · " + Rule.label(p.type),
-            ex.getMessage() == null ? ex.toString() : ex.getMessage(),
-            "failed");
+        store.failure(rule.name + " · " + Rule.label(p.type), ex, Rule.label(p.type), rule);
       }
     }
     store.log(
         rule.name,
         failed == 0
             ? "Actions dispatched. Check their individual observations; pending SMS/audio is not"
-                  + " proof of delivery or audibility."
+                + " proof of delivery or audibility."
             : failed + " action(s) failed. Other independent actions were attempted.",
         failed == 0 ? "dispatched" : "partial");
   }
 
   private String volume(Rule.Piece p, int priority) {
-    if (priority < 10 && System.currentTimeMillis() < emergencyUntil)
+    if (priority < 10 && System.currentTimeMillis() < store.prefs().getLong("emergencyUntil", 0))
       throw new IllegalStateException(
           "Emergency sound protection is active for 60 seconds; this normal-priority sound action"
               + " was skipped.");
@@ -99,6 +96,7 @@ public final class ActionRunner {
                 ? new int[] {2, 5}
                 : channel.equals("media") ? new int[] {3} : new int[] {4};
     List<String> outcomes = new ArrayList<>();
+    List<Exception> errors = new ArrayList<>();
     boolean failed = false;
     for (int stream : streams) {
       try {
@@ -125,22 +123,28 @@ public final class ActionRunner {
         if (actual != target) failed = true;
       } catch (Exception e) {
         failed = true;
+        errors.add(e);
         outcomes.add("Stream " + stream + ": " + e.getMessage());
       }
     }
     if (p.type.equals("emergency_loud") || priority == 10)
-      emergencyUntil = System.currentTimeMillis() + 60000;
+      store.prefs().edit().putLong("emergencyUntil", System.currentTimeMillis() + 60000).apply();
     int filter = c.getSystemService(NotificationManager.class).getCurrentInterruptionFilter();
     outcomes.add(
         "DND filter: "
             + filter
             + ". Output device and audible sound must be verified; DND is not overridden.");
     String result = String.join("\n", outcomes);
-    if (failed) throw new IllegalStateException(result);
+    if (failed) {
+      IllegalStateException failure = new IllegalStateException(result);
+      for (Exception e : errors) failure.addSuppressed(e);
+      throw failure;
+    }
     return result;
   }
 
-  private void play(Rule.Piece p, String name) {
+  private void play(Rule.Piece p, Rule rule) {
+    String name = rule.name;
     if (closed) return;
     stopAudio();
     try {
@@ -183,7 +187,7 @@ public final class ActionRunner {
                   };
               main.postDelayed(stopTask, (long) p.number("seconds", 30) * 1000);
             } catch (Exception e) {
-              store.log(name, e.toString(), "failed");
+              store.failure(name, e, "Audio playback", rule);
               stopAudio();
             }
           });
@@ -194,13 +198,17 @@ public final class ActionRunner {
           });
       player.setOnErrorListener(
           (mp, what, extra) -> {
-            store.log(name, "Playback error " + what + " / " + extra, "failed");
+            store.failure(
+                name,
+                new IllegalStateException("Playback error " + what + " / " + extra),
+                "Audio playback",
+                rule);
             stopAudio();
             return true;
           });
       player.prepareAsync();
     } catch (Exception e) {
-      store.log(name, "Could not play audio: " + e.getMessage(), "failed");
+      store.failure(name, e, "Audio playback", rule);
       stopAudio();
     }
   }
