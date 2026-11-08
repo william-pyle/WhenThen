@@ -89,7 +89,7 @@ Rules, readiness observations, and the latest 300 history entries stay on the ph
 For **Enter a place** or **Leave a place**, tap **Choose location on map** (or **Change location on map** for a saved point).
 
 1. Search an address or place name and select the matching result. You can also tap **My location**, which requests location permission when needed.
-2. Pan, pinch to zoom, or use **+ / ?**. Tap the map or drag the orange pin to choose the exact point.
+2. Pan, pinch to zoom, or use the **plus and minus buttons**. Tap the map or drag the orange pin to choose the exact point.
 3. Set **Radius (feet)**. The purple circle updates as you type; **Fit circle** shows the whole boundary. A radius of 250 feet extends 250 feet from the pin in every direction.
 4. Give the place a name and tap **Use this location**. Then save the rule in the editor. **Cancel** leaves its previous location and radius unchanged.
 
