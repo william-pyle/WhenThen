@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/whenthen-icon-c2.png" alt="Orange WHEN brick at the upper left connected to a purple THEN brick extending right" width="128">
+  <img src="docs/images/whenthen-icon-flat.png" alt="Flat yellow WHEN brick connected to a lavender THEN brick, with black outlines and transparent surroundings" width="128">
 </p>
 
 # WhenThen
@@ -33,16 +33,22 @@ For example: **WHEN** a chosen contact calls three times within five minutes, **
 
 ## Inside the app
 
+The current source contains the **1.0.5 flat brick redesign**: rectangular studs,
+black outlines, yellow WHEN, lavender THEN and blue rule frames. Enabled rules use
+a green status block and mint interior; disabled rules use red. Buttons, navigation,
+forms and app dialogs share that style. The screenshots below are from the local
+review build; the latest published release remains 1.0.4.
+
 | Overview | Blocks | Setup |
 | --- | --- | --- |
-| <img src="docs/images/overview-1.0.4.png" alt="Overview with connected WHEN and THEN bricks and monitoring status" width="250"> | <img src="docs/images/blocks-1.0.4.png" alt="Saved block with its condition, connected actions, toggle, Edit and More" width="250"> | <img src="docs/images/setup-1.0.4.png" alt="Compact permission checks and access buttons" width="250"> |
+| <img src="docs/images/flat-overview-1.0.5.png" alt="Overview with connected WHEN and THEN bricks and monitoring status" width="250"> | <img src="docs/images/flat-blocks-enabled-1.0.5.png" alt="Saved block with its condition, connected actions, toggle, Edit and More" width="250"> | <img src="docs/images/flat-setup-1.0.5.png" alt="Compact permission checks and access buttons" width="250"> |
 
-These are screenshots of the native Android app, version 1.0.4.
+These are actual Android emulator captures of the 1.0.5 review build.
 
 <details>
 <summary>The template library</summary>
 
-<img src="docs/images/native-templates-1.0.2.png" alt="Template library with import, export, and editable starter flows" width="320">
+<img src="docs/images/flat-templates-1.0.5.png" alt="Template library with import, export, and editable starter flows" width="320">
 
 </details>
 
@@ -255,6 +261,8 @@ This workflow attaches assets after release publication, so the repository's rel
 | `scripts/` | Build, tool setup, signing-key creation, emulator download, and release packaging |
 | `tests/` | Android emulator event and location integration scripts |
 | `docs/images/` | App icon and native screenshots |
+| `docs/art/whenthen-flat-icon.svg` | Editable transparent flat-brick icon master |
+| `scripts/generate-flat-icon.py` | Regenerate the SVG master and Android notification silhouette |
 | `.github/workflows/` | Automatic build checks and signed release publishing |
 | `version.properties` | App version and Android version code |
 

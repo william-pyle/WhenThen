@@ -4,7 +4,7 @@ import android.Manifest;
 import android.app.*;
 import android.content.*;
 import android.graphics.Color;
-import android.graphics.drawable.GradientDrawable;
+
 import android.location.*;
 import android.net.Uri;
 import android.os.*;
@@ -96,12 +96,12 @@ public final class MapPickerActivity extends Activity {
     configureMap();
     LinearLayout tools = row();
     tools.addView(
-        button("My location", this::currentLocation), new LinearLayout.LayoutParams(0, dp(44), 1));
+        button("My location", this::currentLocation), new LinearLayout.LayoutParams(0, dp(56), 1));
     fit = button("Fit circle", () -> js("picker.fit()"));
-    tools.addView(fit, new LinearLayout.LayoutParams(0, dp(44), 1));
+    tools.addView(fit, new LinearLayout.LayoutParams(0, dp(56), 1));
     tools.addView(
         button("Retry map", () -> js("picker.retry()")),
-        new LinearLayout.LayoutParams(0, dp(44), 1));
+        new LinearLayout.LayoutParams(0, dp(56), 1));
     root.addView(tools);
     name = input("Place name", state.getString("name", ""), 1);
     root.addView(name, new LinearLayout.LayoutParams(-1, dp(48)));
@@ -120,12 +120,8 @@ public final class MapPickerActivity extends Activity {
               updateSelectionStatus();
             }));
     accept = button("Use this location", this::confirm);
-    accept.setTextColor(Color.WHITE);
-    GradientDrawable bg = new GradientDrawable();
-    bg.setColor(MainActivity.PURPLE);
-    bg.setCornerRadius(dp(14));
-    accept.setBackground(bg);
-    root.addView(accept, new LinearLayout.LayoutParams(-1, dp(50)));
+    BrickStyle.button(accept, BrickStyle.WHEN);
+    root.addView(accept, new LinearLayout.LayoutParams(-1, dp(56)));
     TextView privacy =
         label(
             "Maps use OpenStreetMap. Address searches use your device’s search provider. Internet"
@@ -359,7 +355,7 @@ public final class MapPickerActivity extends Activity {
                     choose(places.get(0));
                     return;
                   }
-                  new AlertDialog.Builder(this)
+                  new BrickDialogBuilder(this)
                       .setTitle("Choose the matching address")
                       .setItems(
                           places.stream().map(p -> p.label).toArray(String[]::new),
@@ -535,6 +531,8 @@ public final class MapPickerActivity extends Activity {
     v.setContentDescription(hint);
     v.setText(value);
     v.setTextSize(15);
+    v.setBackground(BrickStyle.panel(this, Color.WHITE));
+    v.setPadding(dp(8), dp(6), dp(8), dp(6));
     v.setTextColor(MainActivity.INK);
     v.setImeOptions(EditorInfo.IME_ACTION_DONE);
     v.setOnEditorActionListener(
@@ -551,9 +549,8 @@ public final class MapPickerActivity extends Activity {
   private Button button(String text, Runnable action) {
     Button b = new Button(this);
     b.setText(text);
-    b.setAllCaps(false);
-    b.setTextSize(14);
-    b.setTextColor(MainActivity.PURPLE);
+    BrickStyle.button(b, BrickStyle.BLUE);
+    b.setTextSize(12);
     b.setOnClickListener(v -> action.run());
     return b;
   }

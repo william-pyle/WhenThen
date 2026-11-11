@@ -161,7 +161,7 @@ final class AppUpdater {
   void offer(UpdateRelease release) {
     if (!resumed || !canPrompt.getAsBoolean() || (dialog != null && dialog.isShowing())) return;
     dialog =
-        new AlertDialog.Builder(activity)
+        new BrickDialogBuilder(activity)
             .setTitle("WhenThen " + release.versionName + " is available")
             .setMessage(
                 release.notes
@@ -177,7 +177,7 @@ final class AppUpdater {
   private void requestInstall(UpdateRelease release) {
     if (!activity.getPackageManager().canRequestPackageInstalls()) {
       dialog =
-          new AlertDialog.Builder(activity)
+          new BrickDialogBuilder(activity)
               .setTitle("Allow WhenThen updates")
               .setMessage(
                   "On the next screen, enable Allow from this source for WhenThen, then return"
@@ -220,7 +220,7 @@ final class AppUpdater {
     progress.setMax(100);
     progress.setPadding(32, 16, 32, 16);
     dialog =
-        new AlertDialog.Builder(activity)
+        new BrickDialogBuilder(activity)
             .setTitle("Downloading WhenThen " + release.versionName)
             .setMessage("Checking the download before opening Android's installer.")
             .setView(progress)
@@ -290,7 +290,7 @@ final class AppUpdater {
   private void message(String title, String message) {
     if (!closed && resumed)
       dialog =
-          new AlertDialog.Builder(activity)
+          new BrickDialogBuilder(activity)
               .setTitle(title)
               .setMessage(message)
               .setPositiveButton("OK", null)

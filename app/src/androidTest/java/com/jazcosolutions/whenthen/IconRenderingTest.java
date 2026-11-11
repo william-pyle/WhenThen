@@ -12,7 +12,7 @@ import java.io.FileOutputStream;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-/** Native drawable previews for human review; the approved raster artwork stays unchanged. */
+/** Native drawable previews for human review; the current flat artwork remains editable as SVG. */
 @RunWith(AndroidJUnit4.class)
 public class IconRenderingTest {
   @Test
@@ -46,16 +46,22 @@ public class IconRenderingTest {
             icon.getForeground().draw(iconCanvas);
           }
           int orange = 0, purple = 0;
+          int minX = size, minY = size, maxX = 0, maxY = 0;
           for (int y = 0; y < size; y++)
             for (int xx = 0; xx < size; xx++) {
               int pixel = output.getPixel(xx, y);
+              boolean colored = (Color.red(pixel) > 190 && Color.green(pixel) > 70 && Color.blue(pixel) < 110)
+                  || (Color.red(pixel) > 60 && Color.blue(pixel) > 150 && Color.green(pixel) < 200);
+              if (colored) { minX = Math.min(minX, xx); minY = Math.min(minY, y); maxX = Math.max(maxX, xx); maxY = Math.max(maxY, y); }
               if (Color.red(pixel) > 190 && Color.green(pixel) > 70 && Color.blue(pixel) < 110)
                 orange++;
-              if (Color.red(pixel) > 60 && Color.blue(pixel) > 150 && Color.green(pixel) < 130)
+              if (Color.red(pixel) > 60 && Color.blue(pixel) > 150 && Color.green(pixel) < 200)
                 purple++;
             }
-          assertTrue("Orange brick visible at " + size, orange > size * size * .08);
+          assertTrue("Yellow brick visible at " + size, orange > size * size * .08);
           assertTrue("Purple brick visible at " + size, purple > size * size * .06);
+          assertTrue("Whole brick silhouette stays inside the launcher mask at " + size,
+              minX >= size * .05f && minY >= size * .05f && maxX < size * .95f && maxY < size * .95f);
           canvas.drawBitmap(output, x, row * 260 + 60, paint);
           x += size + 15;
         }

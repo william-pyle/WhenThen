@@ -44,6 +44,8 @@ public final class FailureReportActivity extends Activity {
     root.addView(help);
     title = new EditText(this);
     title.setSingleLine(true);
+    title.setBackground(BrickStyle.panel(this, android.graphics.Color.WHITE));
+    title.setPadding(dp(8), dp(8), dp(8), dp(8));
     title.setContentDescription("Issue title");
     title.setFilters(
         new android.text.InputFilter[] {new android.text.InputFilter.LengthFilter(160)});
@@ -51,6 +53,8 @@ public final class FailureReportActivity extends Activity {
     root.addView(title);
     report = new EditText(this);
     report.setGravity(Gravity.TOP);
+    report.setBackground(BrickStyle.panel(this, android.graphics.Color.WHITE));
+    report.setPadding(dp(8), dp(8), dp(8), dp(8));
     report.setTextSize(13);
     report.setTypeface(Typeface.MONOSPACE);
     report.setContentDescription("Issue details");
@@ -69,7 +73,7 @@ public final class FailureReportActivity extends Activity {
     root.addView(buttons);
     Button close = new Button(this);
     close.setText("Close");
-    close.setAllCaps(false);
+    BrickStyle.button(close, BrickStyle.BLUE);
     close.setOnClickListener(v -> finish());
     root.addView(close);
   }
@@ -77,7 +81,7 @@ public final class FailureReportActivity extends Activity {
   private void addButton(LinearLayout row, String text, Runnable action) {
     Button b = new Button(this);
     b.setText(text);
-    b.setAllCaps(false);
+    BrickStyle.button(b, BrickStyle.BLUE);
     b.setOnClickListener(v -> action.run());
     row.addView(b, new LinearLayout.LayoutParams(0, -2, 1));
   }
@@ -98,7 +102,7 @@ public final class FailureReportActivity extends Activity {
         url = FailureReport.url(title.getText().toString(), body);
     if (url.length() > FailureReport.MAX_URL) {
       copy();
-      new AlertDialog.Builder(this)
+      new BrickDialogBuilder(this)
           .setTitle("Full report copied")
           .setMessage(
               "This report is too long for a web link. Paste it into GitHub’s description before"

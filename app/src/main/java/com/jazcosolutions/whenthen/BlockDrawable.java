@@ -1,104 +1,76 @@
 package com.jazcosolutions.whenthen;
 
-import android.graphics.*;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.ColorFilter;
+import android.graphics.Paint;
+import android.graphics.Path;
+import android.graphics.PixelFormat;
+import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 
-/** Soft satin brick faces and round studs matching the approved app artwork. */
+/** Flat outlined construction brick, shared by every app surface and control. */
 public final class BlockDrawable extends Drawable {
-  private final Paint paint = new Paint(3);
+  public static final float STUD_HEIGHT = 12f;
+  private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+  private final Path outline = new Path();
   private final int color;
   private final float d;
+  private int alpha = 255;
+  private float gapStart = -1, gapRightInset;
 
   public BlockDrawable(int color, float density) {
     this.color = color;
     d = density;
   }
 
+  /** Leave a clear connection beneath another brick while keeping the outer studs. */
+  public BlockDrawable studGap(float leftDp, float rightInsetDp) {
+    gapStart = leftDp * d;
+    gapRightInset = rightInsetDp * d;
+    return this;
+  }
+
   @Override
-  public void draw(Canvas c) {
+  public void draw(Canvas canvas) {
     Rect b = getBounds();
-    float top = b.top + 19 * d;
-    paint.setShader(null);
-    paint.setColor(Color.argb(24, 35, 16, 65));
-    c.drawRoundRect(
-        new RectF(b.left + 2 * d, top + 3 * d, b.right, b.bottom), 10 * d, 10 * d, paint);
-    paint.setColor(Color.WHITE);
-    paint.setShader(
-        new LinearGradient(
-            0, top, 0, b.bottom, tint(color, 0.08f), tint(color, -0.06f), Shader.TileMode.CLAMP));
-    c.drawRoundRect(new RectF(b.left, top, b.right - 2 * d, b.bottom - 4 * d), 9 * d, 9 * d, paint);
-    paint.setShader(null);
-    paint.setColor(tint(color, -0.16f));
-    c.drawRoundRect(
-        new RectF(b.left + 3 * d, b.bottom - 11 * d, b.right - 4 * d, b.bottom - 4 * d),
-        4 * d,
-        4 * d,
-        paint);
-    paint.setColor(Color.argb(50, 255, 255, 255));
-    c.drawRoundRect(
-        new RectF(b.left + 9 * d, top + 4 * d, b.right - 11 * d, top + 6 * d), 2 * d, 2 * d, paint);
-    // Keep a regular connector spacing across the whole brick, including wide screens.
-    int studs = Math.max(1, (int) ((b.width() - 24 * d) / (42 * d)));
-    float first = b.left + (b.width() - ((studs - 1) * 42 + 29) * d) / 2;
-    for (int i = 0; i < studs; i++) {
-      float left = first + 42 * i * d;
-      paint.setColor(Color.WHITE);
-      paint.setShader(
-          new LinearGradient(
-              left,
-              0,
-              left + 29 * d,
-              0,
-              tint(color, -0.06f),
-              tint(color, -0.20f),
-              Shader.TileMode.CLAMP));
-      c.drawRoundRect(
-          new RectF(left, b.top + 9 * d, left + 29 * d, top + 8 * d), 7 * d, 7 * d, paint);
-      paint.setShader(
-          new LinearGradient(
-              0,
-              b.top + 3 * d,
-              0,
-              b.top + 17 * d,
-              tint(color, 0.17f),
-              color,
-              Shader.TileMode.CLAMP));
-      c.drawOval(new RectF(left, b.top + 3 * d, left + 29 * d, b.top + 17 * d), paint);
-      paint.setShader(null);
-      paint.setStyle(Paint.Style.STROKE);
-      paint.setStrokeWidth(d);
-      paint.setColor(Color.argb(60, 255, 255, 255));
-      c.drawArc(
-          new RectF(left + d, b.top + 3 * d, left + 28 * d, b.top + 16 * d),
-          185,
-          150,
-          false,
-          paint);
-      paint.setStyle(Paint.Style.FILL);
+    float stroke = 1.5f * d, inset = stroke / 2;
+    float left = b.left + inset, right = b.right - inset;
+    float high = b.top + inset, top = high + STUD_HEIGHT * d, bottom = b.bottom - inset;
+    if (right <= left || bottom <= top) return;
+    float stud = Math.min(28 * d, (right - left) * .5f), radius = 3 * d;
+    int count = Math.max(1, (int) ((right - left - 24 * d) / (56 * d)) + 1);
+    float first = count == 1 ? left + (right - left - stud) / 2 : left + 12 * d;
+    float pitch = count == 1 ? 0 : (right - left - 24 * d - stud) / (count - 1);
+    outline.reset();
+    outline.moveTo(left, top);
+    for (int i = 0; i < count; i++) {
+      float x = first + i * pitch;
+      if (gapStart >= 0 && x + stud / 2 > b.left + gapStart && x + stud / 2 < b.right - gapRightInset) continue;
+      outline.lineTo(x, top);
+      outline.lineTo(x, high + radius);
+      outline.quadTo(x, high, x + radius, high);
+      outline.lineTo(x + stud - radius, high);
+      outline.quadTo(x + stud, high, x + stud, high + radius);
+      outline.lineTo(x + stud, top);
     }
+    outline.lineTo(right, top);
+    outline.lineTo(right, bottom);
+    outline.lineTo(left, bottom);
+    outline.close();
+    paint.setStyle(Paint.Style.FILL);
+    paint.setColor(color);
+    paint.setAlpha(alpha);
+    canvas.drawPath(outline, paint);
+    paint.setStyle(Paint.Style.STROKE);
+    paint.setStrokeWidth(stroke);
+    paint.setStrokeJoin(Paint.Join.MITER);
+    paint.setColor(Color.BLACK);
+    paint.setAlpha(alpha);
+    canvas.drawPath(outline, paint);
   }
 
-  private static int tint(int color, float amount) {
-    int target = amount >= 0 ? 255 : 0;
-    float a = Math.abs(amount);
-    return Color.rgb(
-        Math.round(Color.red(color) * (1 - a) + target * a),
-        Math.round(Color.green(color) * (1 - a) + target * a),
-        Math.round(Color.blue(color) * (1 - a) + target * a));
-  }
-
-  @Override
-  public void setAlpha(int a) {
-    paint.setAlpha(a);
-  }
-
-  @Override
-  public void setColorFilter(ColorFilter f) {
-    paint.setColorFilter(f);
-  }
-
-  @Override
-  public int getOpacity() {
-    return PixelFormat.TRANSLUCENT;
-  }
+  @Override public void setAlpha(int value) { alpha = value; invalidateSelf(); }
+  @Override public void setColorFilter(ColorFilter value) { paint.setColorFilter(value); invalidateSelf(); }
+  @Override public int getOpacity() { return PixelFormat.TRANSLUCENT; }
 }

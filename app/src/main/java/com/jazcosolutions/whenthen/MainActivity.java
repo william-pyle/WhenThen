@@ -5,7 +5,7 @@ import android.app.*;
 import android.content.*;
 import android.database.Cursor;
 import android.graphics.*;
-import android.graphics.drawable.GradientDrawable;
+
 import android.location.*;
 import android.net.Uri;
 import android.os.*;
@@ -21,13 +21,11 @@ import java.util.*;
 import java.util.function.Consumer;
 
 public final class MainActivity extends Activity {
-  public static final int BG = 0xFFF7F6FC,
-      INK = 0xFF25213D,
-      MUTED = 0xFF6C6581,
-      ORANGE = 0xFFB74715,
-      PURPLE = 0xFF6B20D0,
-      TEAL = 0xFF087D70;
-  private static final int[] OPTIONS = {0xFFFFF0CC, 0xFFE4F7EF, 0xFFFFE7EF, 0xFFE5EFFF};
+  public static final int BG = BrickStyle.BACKGROUND,
+      INK = BrickStyle.INK, MUTED = BrickStyle.MUTED,
+      ORANGE = BrickStyle.DISABLED, PURPLE = BrickStyle.BLUE, TEAL = BrickStyle.ENABLED;
+  private static final int[] OPTIONS = {Color.WHITE, Color.WHITE, Color.WHITE, Color.WHITE};
+
   private LinearLayout root, body, nav;
   private TextView updateStatus;
   private LinearLayout monitorCard;
@@ -130,7 +128,7 @@ public final class MainActivity extends Activity {
 
   private void handleBack() {
     if (draft != null) {
-      new AlertDialog.Builder(this)
+      new BrickDialogBuilder(this)
           .setTitle("Leave this builder?")
           .setMessage("Your unsaved changes will be discarded.")
           .setPositiveButton(
@@ -152,12 +150,7 @@ public final class MainActivity extends Activity {
     return Math.round(v * getResources().getDisplayMetrics().density);
   }
 
-  private GradientDrawable round(int color, int radius) {
-    GradientDrawable g = new GradientDrawable();
-    g.setColor(color);
-    g.setCornerRadius(dp(radius));
-    return g;
-  }
+
 
   private LinearLayout column() {
     LinearLayout l = new LinearLayout(this);
@@ -198,22 +191,13 @@ public final class MainActivity extends Activity {
   private Button button(String label, int color, Runnable action) {
     Button b = new Button(this);
     b.setText(label);
-    b.setAllCaps(false);
-    b.setTextSize(15);
-    b.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-    b.setTextColor(Color.WHITE);
-    b.setBackground(round(color, 15));
-    b.setMinHeight(dp(50));
-    b.setPadding(dp(14), dp(10), dp(14), dp(10));
+    BrickStyle.button(b, color);
     b.setOnClickListener(v -> action.run());
-    b.setStateListAnimator(null);
     return b;
   }
 
   private Button quiet(String label, Runnable action) {
-    Button b = button(label, 0xFFECE8F8, action);
-    b.setTextColor(PURPLE);
-    return b;
+    return button(label, BrickStyle.BLUE, action);
   }
 
   private void pair(LinearLayout parent, View a, View b) {
@@ -229,22 +213,22 @@ public final class MainActivity extends Activity {
 
   private LinearLayout card(int color) {
     LinearLayout l = column();
-    l.setPadding(dp(18), dp(18), dp(18), dp(18));
-    l.setBackground(round(color, 21));
+    l.setPadding(dp(14), dp(30), dp(14), dp(14));
+    l.setBackground(BrickStyle.block(this, color));
     return l;
   }
 
   private LinearLayout block(int color) {
     LinearLayout l = column();
-    l.setPadding(dp(16), dp(42), dp(16), dp(22));
+    l.setPadding(dp(12), dp(30), dp(12), dp(18));
     l.setBackground(new BlockDrawable(color, getResources().getDisplayMetrics().density));
     return l;
   }
 
   private void connectedBlock(LinearLayout parent, View view, boolean when, int gap) {
     LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
-    params.leftMargin = dp(when ? 0 : 18);
-    params.rightMargin = dp(when ? 18 : 0);
+    params.leftMargin = dp(when ? 0 : 40);
+    params.rightMargin = dp(when ? 40 : 0);
     params.topMargin = dp(gap);
     parent.addView(view, params);
   }
@@ -264,10 +248,20 @@ public final class MainActivity extends Activity {
     };
   }
 
+  private LinearLayout ruleAssembly() {
+    return new LinearLayout(this) {
+      { setOrientation(VERTICAL); setChildrenDrawingOrderEnabled(true); }
+      @Override protected int getChildDrawingOrder(int count, int position) {
+        return count == 4 ? new int[] {2, 3, 1, 0}[position] : position;
+      }
+    };
+  }
+
   private TextView pill(String label, int color, int fg) {
     TextView t = text(label, 12, fg, true);
-    t.setBackground(round(color, 12));
-    t.setPadding(dp(10), dp(5), dp(10), dp(5));
+    t.setBackground(BrickStyle.block(this, color));
+    t.setTextColor(INK);
+    t.setPadding(dp(10), dp(19), dp(10), dp(7));
     return t;
   }
 
@@ -295,7 +289,7 @@ public final class MainActivity extends Activity {
     LinearLayout brand = row();
     brand.setPadding(dp(20), dp(12), dp(20), dp(10));
     ImageView icon = new ImageView(this);
-    icon.setImageResource(R.mipmap.ic_launcher);
+    icon.setImageResource(R.drawable.icon_art);
     icon.setContentDescription("WhenThen interlocking blocks logo");
     brand.addView(icon, new LinearLayout.LayoutParams(dp(38), dp(38)));
     TextView name = text("  WhenThen", 21, INK, true);
@@ -303,10 +297,11 @@ public final class MainActivity extends Activity {
     brand.addView(name, new LinearLayout.LayoutParams(0, -2, 1));
     android.content.res.Configuration configuration = getResources().getConfiguration();
     if (configuration.screenWidthDp / configuration.fontScale >= 400) {
-      brand.addView(pill("YOUR PHONE. YOUR RULES.", 0xFFEDE8FA, PURPLE));
+      brand.addView(pill("YOUR PHONE. YOUR RULES.", BrickStyle.BLUE, INK));
     }
     root.addView(brand);
     scroll = new ScrollView(this);
+    scroll.setDefaultFocusHighlightEnabled(false);
     scroll.setFillViewport(true);
     scroll.setClipToPadding(false);
     body = column();
@@ -324,9 +319,9 @@ public final class MainActivity extends Activity {
       b.setTextSize(12);
       b.setContentDescription(labels[n]);
       b.setSelected(page.equals(dest));
-      b.setPadding(0, dp(8), 0, dp(8));
-      b.setBackground(round(page.equals(dest) ? 0xFFEDE6FC : Color.WHITE, 14));
-      LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, dp(48), 1);
+      b.setPadding(0, dp(18), 0, dp(6));
+      b.setBackground(BrickStyle.block(this, page.equals(dest) ? BrickStyle.BLUE : Color.WHITE));
+      LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, dp(56), 1);
       p.setMargins(dp(3), 0, dp(3), 0);
       nav.addView(b, p);
     }
@@ -370,7 +365,7 @@ public final class MainActivity extends Activity {
 
   private void navigate(String target) {
     if (draft != null) {
-      new AlertDialog.Builder(this)
+      new BrickDialogBuilder(this)
           .setTitle("Leave unsaved rule?")
           .setPositiveButton(
               "Leave",
@@ -388,27 +383,18 @@ public final class MainActivity extends Activity {
   }
 
   private void home() {
-    LinearLayout hero = card(0xFF1D0874);
-    add(hero, text("MAKE LIFE CLICK", 11, 0xFFB8A5FF, true), 0);
-    add(hero, text("Small blocks.\nBig possibilities.", 29, Color.WHITE, true), 7);
-    add(
-        hero,
-        text(
-            "Pick a moment. Snap on an action.\nLet your phone connect the dots.",
-            15,
-            0xFFDDD7F1,
-            false),
-        8);
-    LinearLayout labels = column();
-    LinearLayout whenBrick = block(0xFFFFA233), thenBrick = block(0xFFB88AF0);
-    add(whenBrick, text("WHEN  something happens", 13, 0xFF442004, true), 0);
-    add(thenBrick, text("THEN  do something", 13, 0xFF291143, true), 0);
-    connectedBlock(labels, whenBrick, true, 16);
-    connectedBlock(labels, thenBrick, false, -6);
+    LinearLayout hero = column();
+    LinearLayout labels = connectedStack();
+    LinearLayout whenBrick = block(BrickStyle.WHEN), thenBrick = block(BrickStyle.THEN);
+    add(whenBrick, text("WHEN  something happens", 17, INK, true), 0);
+    add(thenBrick, text("THEN  do something", 17, INK, true), 0);
+    connectedBlock(labels, whenBrick, true, 0);
+    connectedBlock(labels, thenBrick, false, -14);
     add(hero, labels, 0);
-    add(body, hero, 6);
+    add(body, hero, 8);
+
     boolean active = MonitorService.active != null;
-    LinearLayout status = card(active ? 0xFFE0F5EC : 0xFFFFF0D9);
+    LinearLayout status = card(active ? BrickStyle.ENABLED_BODY : BrickStyle.WHEN);
     monitorCard = status;
     monitorTitle = text("", 17, TEAL, true);
     monitorDetail = text("", 13, MUTED, false);
@@ -456,9 +442,9 @@ public final class MainActivity extends Activity {
     boolean active = MonitorService.active != null;
     List<Rule> rules = store.rules();
     long enabled = rules.stream().filter(r -> r.enabled).count();
-    monitorCard.setBackground(round(active ? 0xFFE0F5EC : 0xFFFFF0D9, 21));
+    monitorCard.setBackground(BrickStyle.block(this, active ? BrickStyle.ENABLED_BODY : BrickStyle.WHEN));
     monitorTitle.setText(active ? "●  Monitoring is on" : "○  Monitoring is paused");
-    monitorTitle.setTextColor(active ? TEAL : 0xFF7D4A10);
+    monitorTitle.setTextColor(INK);
     monitorDetail.setText(
         getString(
             R.string.monitor_counts,
@@ -472,7 +458,7 @@ public final class MainActivity extends Activity {
                         ? "\nA saved rule change, reboot or update will resume monitoring."
                         : "")));
     monitorButton.setText(active ? "Pause monitoring" : "Start monitoring");
-    monitorButton.setBackground(round(active ? TEAL : PURPLE, 15));
+    monitorButton.setBackground(BrickStyle.block(this, active ? TEAL : PURPLE));
     monitorHealth.setText(
         active && !MonitorService.health.isEmpty()
             ? "Some access needs attention. Open Setup or Activity for details."
@@ -493,7 +479,7 @@ public final class MainActivity extends Activity {
   }
 
   private void ruleMenu(Rule r) {
-    new AlertDialog.Builder(this)
+    new BrickDialogBuilder(this)
         .setTitle(r.name)
         .setItems(
             new String[] {"Test", "Try in simulator", "Duplicate", "Save as template", "Delete"},
@@ -509,7 +495,7 @@ public final class MainActivity extends Activity {
                 editorPage();
               } else if (n == 3) saveAsTemplate(r);
               else
-                new AlertDialog.Builder(this)
+                new BrickDialogBuilder(this)
                     .setTitle("Delete this block?")
                     .setMessage(r.name)
                     .setPositiveButton(
@@ -528,7 +514,7 @@ public final class MainActivity extends Activity {
   }
 
   private void testRule(Rule rule) {
-    new AlertDialog.Builder(this)
+    new BrickDialogBuilder(this)
         .setTitle("Run a real test?")
         .setMessage(FlowSummary.testDescription(rule))
         .setNegativeButton("Cancel", null)
@@ -604,9 +590,9 @@ public final class MainActivity extends Activity {
       LinearLayout tile = card(Color.WHITE);
       add(tile, text(template.name, 20, INK, true), 0);
       add(tile, text(template.description, 14, MUTED, false), 6);
-      add(tile, pill("WHEN  " + Rule.label(template.rule.when.type), 0xFFFFE4CA, ORANGE), 12);
+      add(tile, pill("WHEN  " + Rule.label(template.rule.when.type), BrickStyle.WHEN, INK), 12);
       for (Rule.Piece action : template.rule.then)
-        add(tile, pill("THEN  " + Rule.label(action.type), 0xFFEDE3FF, PURPLE), 4);
+        add(tile, pill("THEN  " + Rule.label(action.type), BrickStyle.THEN, INK), 4);
       add(
           tile,
           button(
@@ -627,7 +613,7 @@ public final class MainActivity extends Activity {
                   toast("The four starter templates are always available.");
                   return;
                 }
-                new AlertDialog.Builder(this)
+                new BrickDialogBuilder(this)
                     .setTitle("Remove this template?")
                     .setMessage("Your saved rules are kept.")
                     .setNegativeButton("Keep", null)
@@ -651,7 +637,7 @@ public final class MainActivity extends Activity {
     EditText name = new EditText(this);
     name.setText(rule.name);
     name.setContentDescription("Template name");
-    new AlertDialog.Builder(this)
+    new BrickDialogBuilder(this)
         .setTitle("Save as template")
         .setView(name)
         .setMessage(
@@ -673,7 +659,7 @@ public final class MainActivity extends Activity {
   }
 
   private void exportTemplates(List<RuleTemplate> templates) {
-    new AlertDialog.Builder(this)
+    new BrickDialogBuilder(this)
         .setTitle("Export templates?")
         .setMessage(
             "Templates may include message text and details from imported files. Review the JSON"
@@ -692,7 +678,7 @@ public final class MainActivity extends Activity {
   private EditText input(
       LinearLayout parent, String label, String value, int inputType, Consumer<String> change) {
     LinearLayout option = card(OPTIONS[parent.getChildCount() % OPTIONS.length]);
-    option.setPadding(dp(12), dp(10), dp(12), dp(8));
+    option.setPadding(dp(12), dp(23), dp(12), dp(8));
     add(option, text(label, 12, INK, true), 0);
     EditText field = new EditText(this);
     field.setSingleLine(
@@ -733,8 +719,8 @@ public final class MainActivity extends Activity {
       String[] values,
       String selected,
       Consumer<String> change) {
-    LinearLayout option = card(0xFFEDEBFF);
-    option.setPadding(dp(10), dp(9), dp(10), dp(6));
+    LinearLayout option = card(Color.WHITE);
+    option.setPadding(dp(10), dp(23), dp(10), dp(6));
     add(option, text(label, 12, INK, true), 0);
     Spinner spinner = new Spinner(this);
     spinner.setContentDescription(label);
@@ -762,18 +748,18 @@ public final class MainActivity extends Activity {
         "Build your flow",
         "Tap each block to choose what happens. Options fit right inside.");
     input(body, "Rule name", draft.name, 1, v -> draft.name = v);
-    LinearLayout when = block(0xFFFFA233);
-    add(when, text("01  /  WHEN", 12, 0xFF542A13, true), 0);
-    add(when, text(Rule.label(draft.when.type), 23, 0xFF3F210F, true), 7);
+    LinearLayout when = block(BrickStyle.WHEN);
+    add(when, text("01  /  WHEN", 12, INK, true), 0);
+    add(when, text(Rule.label(draft.when.type), 23, INK, true), 7);
     add(when, quiet("Change WHEN block", () -> choosePiece(true, -1)), 12);
     whenOptions(when, draft.when);
     connectedBlock(body, when, true, 22);
     for (int i = 0; i < draft.then.size(); i++) {
       int index = i;
       Rule.Piece piece = draft.then.get(i);
-      LinearLayout then = block(0xFFB88AF0);
-      add(then, text(String.format(Locale.US, "%02d  /  THEN", i + 2), 12, 0xFF352458, true), 0);
-      add(then, text(Rule.label(piece.type), 23, 0xFF2B2046, true), 7);
+      LinearLayout then = block(BrickStyle.THEN);
+      add(then, text(String.format(Locale.US, "%02d  /  THEN", i + 2), 12, INK, true), 0);
+      add(then, text(Rule.label(piece.type), 23, INK, true), 7);
       add(then, quiet("Change THEN block", () -> choosePiece(false, index)), 12);
       thenOptions(then, piece, index);
       LinearLayout controls = row();
@@ -803,12 +789,12 @@ public final class MainActivity extends Activity {
                 render();
               });
       for (Button b : new Button[] {up, down, remove}) {
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(48), 1);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(56), 1);
         lp.setMargins(dp(3), 0, dp(3), 0);
         controls.addView(b, lp);
       }
       add(then, controls, 14);
-      connectedBlock(body, then, false, -6);
+      connectedBlock(body, then, false, -14);
     }
     add(
         body,
@@ -867,7 +853,7 @@ public final class MainActivity extends Activity {
   private void choosePiece(boolean trigger, int index) {
     String[] names = trigger ? Rule.TRIGGER_NAMES : Rule.ACTION_NAMES;
     String[] values = trigger ? Rule.TRIGGERS : Rule.ACTIONS;
-    new AlertDialog.Builder(this)
+    new BrickDialogBuilder(this)
         .setTitle(trigger ? "Choose your WHEN" : "Choose your THEN")
         .setItems(
             names,
@@ -933,7 +919,7 @@ public final class MainActivity extends Activity {
           text(
               "Matches the complete SMS, including case and spaces. RCS is not SMS.",
               13,
-              0xFF542A13,
+              INK,
               false),
           8);
     }
@@ -944,7 +930,7 @@ public final class MainActivity extends Activity {
           text(
               "Use the exact name. An internet outage alone is not a disconnection.",
               13,
-              0xFF542A13,
+              INK,
               false),
           8);
     }
@@ -966,7 +952,7 @@ public final class MainActivity extends Activity {
                   ? "Location selected. Open the map to review the pin and boundary."
                   : "Search an address or tap the map, then use that location.",
               13,
-              0xFF542A13,
+              INK,
               false),
           8);
       field(p, w, "radiusFeet", "Radius in feet", 2);
@@ -976,7 +962,7 @@ public final class MainActivity extends Activity {
               "Starts at 250 feet. Two accurate readings confirm a crossing; GPS can delay small"
                   + " boundaries.",
               13,
-              0xFF542A13,
+              INK,
               false),
           8);
     }
@@ -1002,7 +988,7 @@ public final class MainActivity extends Activity {
               text(
                   "Requests maximum volume. DND and Bluetooth may still affect what you hear.",
                   13,
-                  0xFF352458,
+                  INK,
                   false),
               10);
         break;
@@ -1039,7 +1025,7 @@ public final class MainActivity extends Activity {
                 "Sends an actual SMS when enabled. Carrier charges may apply. Set a default SMS SIM"
                     + " in phone Settings.",
                 13,
-                0xFF352458,
+                INK,
                 false),
             8);
         break;
@@ -1093,7 +1079,7 @@ public final class MainActivity extends Activity {
               startActivityForResult(i, 101);
             }),
         10);
-    if (!a.get("uri").isEmpty()) add(p, text("✓  " + a.get("fileName"), 13, 0xFF352458, false), 8);
+    if (!a.get("uri").isEmpty()) add(p, text("✓  " + a.get("fileName"), 13, INK, false), 8);
   }
 
   private void saveDraft() {
@@ -1140,7 +1126,7 @@ public final class MainActivity extends Activity {
         "GET YOUR PIECES READY",
         "Phone setup",
         "A check means access is ready. Tap a permission for details, or its button to change it.");
-    LinearLayout updateCard = card(0xFFEDE6FC);
+    LinearLayout updateCard = card(BrickStyle.THEN);
     add(updateCard, text("App updates", 20, INK, true), 0);
     updateStatus = text(updates.status(), 14, MUTED, false);
     add(updateCard, updateStatus, 8);
@@ -1229,7 +1215,7 @@ public final class MainActivity extends Activity {
         quiet(
             "Samsung battery help",
             () ->
-                new AlertDialog.Builder(this)
+                new BrickDialogBuilder(this)
                     .setTitle("Keep WhenThen awake")
                     .setMessage(
                         "On Samsung: Settings → Battery → Background usage limits. Add WhenThen to"
@@ -1247,7 +1233,7 @@ public final class MainActivity extends Activity {
                     .show());
     add(body, samsung, 10);
     add(body, updateCard, 14);
-    LinearLayout backup = card(0xFFE7F4F1);
+    LinearLayout backup = card(BrickStyle.ENABLED_BODY);
     add(backup, text("Keep your creations", 20, INK, true), 0);
     add(
         backup,
@@ -1291,8 +1277,8 @@ public final class MainActivity extends Activity {
 
   private void setupItem(String heading, String detail, boolean granted, Runnable action) {
     LinearLayout line = row();
-    line.setPadding(dp(12), dp(3), dp(6), dp(3));
-    line.setBackground(round(Color.WHITE, 12));
+    line.setPadding(dp(12), dp(17), dp(6), dp(4));
+    line.setBackground(BrickStyle.block(this, Color.WHITE));
     TextView check = text(granted ? "✓" : "○", 18, granted ? TEAL : ORANGE, true);
     check.setContentDescription(granted ? "Access ready" : "Access needed");
     line.addView(check, new LinearLayout.LayoutParams(dp(27), -2));
@@ -1306,10 +1292,10 @@ public final class MainActivity extends Activity {
     line.addView(label, new LinearLayout.LayoutParams(0, -2, 1));
     Button access = quiet(granted ? "Review" : "Allow", action);
     access.setTextSize(12);
-    access.setMinHeight(dp(44));
-    access.setPadding(dp(8), dp(5), dp(8), dp(5));
+    access.setMinHeight(dp(52));
+    access.setPadding(dp(6), dp(18), dp(6), dp(6));
     access.setContentDescription((granted ? "Review " : "Allow ") + heading);
-    line.addView(access, new LinearLayout.LayoutParams(dp(76), dp(44)));
+    line.addView(access, new LinearLayout.LayoutParams(dp(76), dp(52)));
     add(body, line, 5);
   }
 
@@ -1345,7 +1331,7 @@ public final class MainActivity extends Activity {
         quiet(
             "Clear history",
             () ->
-                new AlertDialog.Builder(this)
+                new BrickDialogBuilder(this)
                     .setTitle("Clear local history?")
                     .setPositiveButton(
                         "Clear",
@@ -1371,7 +1357,7 @@ public final class MainActivity extends Activity {
           e.status.equals("failed") || e.status.equals("blocked")
               ? ORANGE
               : e.status.equals("simulation") ? PURPLE : TEAL;
-      add(c, pill(e.status.toUpperCase(Locale.US), 0xFFF0ECF8, color), 0);
+      add(c, pill(e.status.toUpperCase(Locale.US), color, INK), 0);
       add(c, text(e.title, 17, INK, true), 10);
       add(c, text(e.detail, 14, MUTED, false), 7);
       add(
@@ -1409,55 +1395,69 @@ public final class MainActivity extends Activity {
       return;
     }
     for (Rule rule : rules) {
-      LinearLayout card = block(0xFFB8E9DD);
-      add(card, text(rule.name, 21, INK, true), 0);
+      LinearLayout assembly = ruleAssembly();
+      LinearLayout statusRow = row();
+      statusRow.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1));
+      LinearLayout stateBlock = block(rule.enabled ? BrickStyle.ENABLED : BrickStyle.DISABLED);
+      stateBlock.setPadding(dp(6), dp(19), dp(6), dp(5));
+      stateBlock.setGravity(Gravity.CENTER_HORIZONTAL);
+      TextView stateLabel = text(rule.enabled ? "Enabled" : "Disabled", 12, INK, true);
+      stateLabel.setAllCaps(true);
+      stateBlock.addView(stateLabel);
       Switch enabled = new Switch(this);
-      enabled.setText(rule.enabled ? "Enabled" : "Disabled");
-      enabled.setTextColor(INK);
-      enabled.setMinHeight(dp(48));
       enabled.setContentDescription("Enable " + rule.name);
       enabled.setChecked(rule.enabled);
-      enabled.setOnCheckedChangeListener(
-          (view, checked) -> {
-            if (checked == rule.enabled) return;
-            if (checked) {
-              List<String> missing = Readiness.missing(this, rule);
-              if (!missing.isEmpty()) {
-                enabled.setChecked(false);
-                alert("Finish setup first", String.join("\n", missing));
-                return;
-              }
-            }
-            rule.enabled = checked;
-            saveChangedRule(rule);
-            enabled.setText(checked ? "Enabled" : "Disabled");
-          });
-      add(card, enabled, 4);
+      BrickStyle.toggle(enabled, rule.enabled);
+      stateBlock.addView(enabled, new LinearLayout.LayoutParams(-2, dp(30)));
+      stateBlock.setOnClickListener(v -> enabled.performClick());
+      statusRow.addView(stateBlock, new LinearLayout.LayoutParams(dp(108), -2));
+      add(assembly, statusRow, 0);
+      LinearLayout header = block(BrickStyle.BLUE);
+      header.setPadding(dp(16), dp(26), dp(16), dp(14));
+      add(header, text(rule.name, 20, INK, true), 0);
+      add(assembly, header, -14);
+      LinearLayout interior = column();
+      interior.setPadding(dp(28), 0, dp(28), 0);
+      interior.setBackground(BrickStyle.panel(this, rule.enabled ? BrickStyle.ENABLED_BODY : BrickStyle.DISABLED));
       LinearLayout chain = connectedStack();
       chain.setClipChildren(false);
       chain.setClipToPadding(false);
-      compactPiece(chain, "WHEN", FlowSummary.when(rule.when), true, 0);
+      compactPiece(chain, "WHEN", FlowSummary.when(rule.when), true, -14);
       for (int i = 0; i < rule.then.size(); i++)
-        compactPiece(chain, "THEN " + (i + 1), FlowSummary.then(rule.then.get(i)), false, -23);
-      add(card, chain, 8);
-      pair(
-          card,
-          quiet(
-              "Edit",
-              () -> {
-                draft = Store.copy(rule);
-                editorPage();
-              }),
-          quiet("More", () -> ruleMenu(rule)));
-      add(body, card, 18);
+        compactPiece(chain, "THEN " + (i + 1), FlowSummary.then(rule.then.get(i)), false, -14);
+      add(interior, chain, 0);
+      add(assembly, interior, -1);
+      LinearLayout footer = block(BrickStyle.BLUE);
+      footer.setPadding(dp(12), dp(18), dp(12), dp(10));
+      footer.setBackground(BrickStyle.block(this, BrickStyle.BLUE).studGap(68, 28));
+      pair(footer, quiet("Edit", () -> { draft = Store.copy(rule); editorPage(); }), quiet("More", () -> ruleMenu(rule)));
+      add(assembly, footer, -14);
+      enabled.setOnCheckedChangeListener((view, checked) -> {
+        if (checked == rule.enabled) return;
+        if (checked) {
+          List<String> missing = Readiness.missing(this, rule);
+          if (!missing.isEmpty()) {
+            enabled.setChecked(false);
+            alert("Finish setup first", String.join("\n", missing));
+            return;
+          }
+        }
+        rule.enabled = checked;
+        saveChangedRule(rule);
+        stateLabel.setText(checked ? "Enabled" : "Disabled");
+        stateBlock.setBackground(BrickStyle.block(this, checked ? BrickStyle.ENABLED : BrickStyle.DISABLED));
+        interior.setBackground(BrickStyle.panel(this, checked ? BrickStyle.ENABLED_BODY : BrickStyle.DISABLED));
+        BrickStyle.toggle(enabled, checked);
+      });
+      add(body, assembly, 18);
     }
   }
 
   private void compactPiece(
       LinearLayout parent, String kind, String summary, boolean when, int gap) {
-    LinearLayout piece = block(when ? 0xFFFFA233 : 0xFFB88AF0);
-    piece.setPadding(dp(12), dp(32), dp(12), dp(24));
-    add(piece, text(kind, 11, when ? 0xFF542A13 : 0xFF352458, true), 0);
+    LinearLayout piece = block(when ? BrickStyle.WHEN : BrickStyle.THEN);
+    piece.setPadding(dp(10), dp(23), dp(10), dp(16));
+    add(piece, text(kind, 11, INK, true), 0);
     TextView details = text(summary, 14, INK, true);
     add(piece, details, 3);
     connectedBlock(parent, piece, when, gap);
@@ -1608,7 +1608,7 @@ public final class MainActivity extends Activity {
           text = bytes.toString(StandardCharsets.UTF_8.name());
         }
         List<Rule> imported = store.parseImport(text);
-        new AlertDialog.Builder(this)
+        new BrickDialogBuilder(this)
             .setTitle("Import " + imported.size() + " rules?")
             .setMessage(
                 "This replaces your current rules. Export a backup first if you want to keep them."
@@ -1633,7 +1633,7 @@ public final class MainActivity extends Activity {
         try (InputStream input = getContentResolver().openInputStream(uri)) {
           templates = RuleTemplate.decode(TemplateLibrary.read(input));
         }
-        new AlertDialog.Builder(this)
+        new BrickDialogBuilder(this)
             .setTitle("Import " + templates.size() + " templates?")
             .setMessage(
                 "Adds reusable drafts to your library. Existing rules and templates are kept."
@@ -1683,8 +1683,9 @@ public final class MainActivity extends Activity {
         add(content, text("Image unavailable. Choose it again in the rule.", 14, MUTED, false), 8);
       }
     ScrollView scroll = new ScrollView(this);
+    scroll.setDefaultFocusHighlightEnabled(false);
     scroll.addView(content);
-    new AlertDialog.Builder(this)
+    new BrickDialogBuilder(this)
         .setTitle("WhenThen")
         .setView(scroll)
         .setPositiveButton("Close", null)
@@ -1704,7 +1705,7 @@ public final class MainActivity extends Activity {
   }
 
   private void alert(String title, String message) {
-    new AlertDialog.Builder(this)
+    new BrickDialogBuilder(this)
         .setTitle(title)
         .setMessage(message)
         .setPositiveButton("Got it", null)
