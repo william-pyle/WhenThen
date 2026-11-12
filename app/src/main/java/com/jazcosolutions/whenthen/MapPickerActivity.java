@@ -549,7 +549,7 @@ public final class MapPickerActivity extends Activity {
   private Button button(String text, Runnable action) {
     Button b = new Button(this);
     b.setText(text);
-    BrickStyle.button(b, BrickStyle.BLUE);
+    BrickStyle.secondaryButton(b);
     b.setTextSize(12);
     b.setOnClickListener(v -> action.run());
     return b;

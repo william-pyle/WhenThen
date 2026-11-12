@@ -24,8 +24,6 @@ public final class MainActivity extends Activity {
   public static final int BG = BrickStyle.BACKGROUND,
       INK = BrickStyle.INK, MUTED = BrickStyle.MUTED,
       ORANGE = BrickStyle.DISABLED, PURPLE = BrickStyle.BLUE, TEAL = BrickStyle.ENABLED;
-  private static final int[] OPTIONS = {Color.WHITE, Color.WHITE, Color.WHITE, Color.WHITE};
-
   private LinearLayout root, body, nav;
   private TextView updateStatus;
   private LinearLayout monitorCard;
@@ -197,7 +195,11 @@ public final class MainActivity extends Activity {
   }
 
   private Button quiet(String label, Runnable action) {
-    return button(label, BrickStyle.BLUE, action);
+    Button b = new Button(this);
+    b.setText(label);
+    BrickStyle.secondaryButton(b);
+    b.setOnClickListener(v -> action.run());
+    return b;
   }
 
   private void pair(LinearLayout parent, View a, View b) {
@@ -213,8 +215,9 @@ public final class MainActivity extends Activity {
 
   private LinearLayout card(int color) {
     LinearLayout l = column();
-    l.setPadding(dp(14), dp(30), dp(14), dp(14));
-    l.setBackground(BrickStyle.block(this, color));
+    l.setPadding(dp(16), dp(16), dp(16), dp(16));
+    l.setBackground(BrickStyle.panel(this, color));
+    l.setElevation(dp(2));
     return l;
   }
 
@@ -248,25 +251,15 @@ public final class MainActivity extends Activity {
     };
   }
 
-  private LinearLayout ruleAssembly() {
-    return new LinearLayout(this) {
-      { setOrientation(VERTICAL); setChildrenDrawingOrderEnabled(true); }
-      @Override protected int getChildDrawingOrder(int count, int position) {
-        return count == 4 ? new int[] {2, 3, 1, 0}[position] : position;
-      }
-    };
-  }
-
   private TextView pill(String label, int color, int fg) {
     TextView t = text(label, 12, fg, true);
-    t.setBackground(BrickStyle.block(this, color));
-    t.setTextColor(INK);
-    t.setPadding(dp(10), dp(19), dp(10), dp(7));
+    t.setBackground(BrickStyle.smallPanel(this, color));
+    t.setPadding(dp(10), dp(7), dp(10), dp(7));
     return t;
   }
 
   private void title(String eyebrow, String heading, String description) {
-    add(body, text(eyebrow.toUpperCase(Locale.US), 11, PURPLE, true), 6);
+    add(body, text(eyebrow.toUpperCase(Locale.US), 11, MUTED, true), 6);
     add(body, text(heading, 30, INK, true), 5);
     if (!description.isEmpty()) add(body, text(description, 15, MUTED, false), 6);
   }
@@ -287,7 +280,7 @@ public final class MainActivity extends Activity {
           return insets;
         });
     LinearLayout brand = row();
-    brand.setPadding(dp(20), dp(12), dp(20), dp(10));
+    brand.setPadding(dp(24), dp(12), dp(24), dp(10));
     ImageView icon = new ImageView(this);
     icon.setImageResource(R.drawable.icon_art);
     icon.setContentDescription("WhenThen interlocking blocks logo");
@@ -295,34 +288,36 @@ public final class MainActivity extends Activity {
     TextView name = text("  WhenThen", 21, INK, true);
     name.setSingleLine(true);
     brand.addView(name, new LinearLayout.LayoutParams(0, -2, 1));
-    android.content.res.Configuration configuration = getResources().getConfiguration();
-    if (configuration.screenWidthDp / configuration.fontScale >= 400) {
-      brand.addView(pill("YOUR PHONE. YOUR RULES.", BrickStyle.BLUE, INK));
-    }
     root.addView(brand);
     scroll = new ScrollView(this);
     scroll.setDefaultFocusHighlightEnabled(false);
     scroll.setFillViewport(true);
     scroll.setClipToPadding(false);
     body = column();
-    body.setPadding(dp(20), dp(6), dp(20), dp(26));
+    body.setPadding(dp(24), dp(6), dp(24), dp(26));
     scroll.addView(body);
     root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
     nav = row();
-    nav.setPadding(dp(10), dp(8), dp(10), dp(10));
+    nav.setPadding(dp(12), dp(6), dp(12), dp(8));
     nav.setBackgroundColor(Color.WHITE);
     String[] tabs = {"overview", "blocks", "activity", "setup"};
     String[] labels = {"Overview", "Blocks", "Activity", "Setup"};
     for (int n = 0; n < tabs.length; n++) {
       String dest = tabs[n];
-      Button b = quiet(labels[n], () -> navigate(dest));
+      Button b = new Button(this);
+      b.setText(labels[n]);
+      b.setOnClickListener(v -> navigate(dest));
       b.setTextSize(12);
+      b.setAllCaps(false);
+      b.setTextColor(page.equals(dest) ? PURPLE : MUTED);
+      b.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
       b.setContentDescription(labels[n]);
       b.setSelected(page.equals(dest));
-      b.setPadding(0, dp(18), 0, dp(6));
-      b.setBackground(BrickStyle.block(this, page.equals(dest) ? BrickStyle.BLUE : Color.WHITE));
-      LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, dp(56), 1);
-      p.setMargins(dp(3), 0, dp(3), 0);
+      b.setPadding(0, 0, 0, 0);
+      b.setBackground(BrickStyle.smallPanel(this, page.equals(dest) ? 0xFFE8EFFB : Color.WHITE));
+      b.setStateListAnimator(null);
+      LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, dp(48), 1);
+      p.setMargins(dp(2), 0, dp(2), 0);
       nav.addView(b, p);
     }
     root.addView(nav);
@@ -394,7 +389,7 @@ public final class MainActivity extends Activity {
     add(body, hero, 8);
 
     boolean active = MonitorService.active != null;
-    LinearLayout status = card(active ? BrickStyle.ENABLED_BODY : BrickStyle.WHEN);
+    LinearLayout status = card(BrickStyle.SURFACE);
     monitorCard = status;
     monitorTitle = text("", 17, TEAL, true);
     monitorDetail = text("", 13, MUTED, false);
@@ -442,7 +437,7 @@ public final class MainActivity extends Activity {
     boolean active = MonitorService.active != null;
     List<Rule> rules = store.rules();
     long enabled = rules.stream().filter(r -> r.enabled).count();
-    monitorCard.setBackground(BrickStyle.block(this, active ? BrickStyle.ENABLED_BODY : BrickStyle.WHEN));
+    monitorCard.setBackground(BrickStyle.panel(this, BrickStyle.SURFACE));
     monitorTitle.setText(active ? "●  Monitoring is on" : "○  Monitoring is paused");
     monitorTitle.setTextColor(INK);
     monitorDetail.setText(
@@ -458,7 +453,6 @@ public final class MainActivity extends Activity {
                         ? "\nA saved rule change, reboot or update will resume monitoring."
                         : "")));
     monitorButton.setText(active ? "Pause monitoring" : "Start monitoring");
-    monitorButton.setBackground(BrickStyle.block(this, active ? TEAL : PURPLE));
     monitorHealth.setText(
         active && !MonitorService.health.isEmpty()
             ? "Some access needs attention. Open Setup or Activity for details."
@@ -563,9 +557,9 @@ public final class MainActivity extends Activity {
 
   private void templatePage() {
     title(
-        "REUSABLE BUILDING BLOCKS",
+        "READY TO CUSTOMIZE",
         "Your template library",
-        "Pick a starting point, customize its pieces, and save your own rule.");
+        "Choose a starting point, adjust its details, and save your own rule.");
     pair(
         body,
         button(
@@ -590,9 +584,9 @@ public final class MainActivity extends Activity {
       LinearLayout tile = card(Color.WHITE);
       add(tile, text(template.name, 20, INK, true), 0);
       add(tile, text(template.description, 14, MUTED, false), 6);
-      add(tile, pill("WHEN  " + Rule.label(template.rule.when.type), BrickStyle.WHEN, INK), 12);
+      add(tile, pill("WHEN  " + Rule.label(template.rule.when.type), 0xFFFFF4D5, INK), 12);
       for (Rule.Piece action : template.rule.then)
-        add(tile, pill("THEN  " + Rule.label(action.type), BrickStyle.THEN, INK), 4);
+        add(tile, pill("THEN  " + Rule.label(action.type), 0xFFF0EBF8, INK), 4);
       add(
           tile,
           button(
@@ -677,8 +671,9 @@ public final class MainActivity extends Activity {
 
   private EditText input(
       LinearLayout parent, String label, String value, int inputType, Consumer<String> change) {
-    LinearLayout option = card(OPTIONS[parent.getChildCount() % OPTIONS.length]);
-    option.setPadding(dp(12), dp(23), dp(12), dp(8));
+    LinearLayout option = card(parent == body ? BrickStyle.SURFACE : BrickStyle.SUBTLE);
+    if (parent != body) option.setElevation(0);
+    option.setPadding(dp(12), dp(12), dp(12), dp(8));
     add(option, text(label, 12, INK, true), 0);
     EditText field = new EditText(this);
     field.setSingleLine(
@@ -719,8 +714,9 @@ public final class MainActivity extends Activity {
       String[] values,
       String selected,
       Consumer<String> change) {
-    LinearLayout option = card(Color.WHITE);
-    option.setPadding(dp(10), dp(23), dp(10), dp(6));
+    LinearLayout option = card(BrickStyle.SUBTLE);
+    option.setElevation(0);
+    option.setPadding(dp(10), dp(12), dp(10), dp(6));
     add(option, text(label, 12, INK, true), 0);
     Spinner spinner = new Spinner(this);
     spinner.setContentDescription(label);
@@ -744,23 +740,23 @@ public final class MainActivity extends Activity {
 
   private void editor() {
     title(
-        "SNAP SOMETHING TOGETHER",
-        "Build your flow",
-        "Tap each block to choose what happens. Options fit right inside.");
+        "CREATE OR EDIT",
+        "Build your rule",
+        "Choose what starts the rule, then add the actions to run.");
     input(body, "Rule name", draft.name, 1, v -> draft.name = v);
-    LinearLayout when = block(BrickStyle.WHEN);
-    add(when, text("01  /  WHEN", 12, INK, true), 0);
+    LinearLayout when = card(BrickStyle.SURFACE);
+    add(when, text("WHEN", 12, PURPLE, true), 0);
     add(when, text(Rule.label(draft.when.type), 23, INK, true), 7);
-    add(when, quiet("Change WHEN block", () -> choosePiece(true, -1)), 12);
+    add(when, quiet("Change trigger", () -> choosePiece(true, -1)), 12);
     whenOptions(when, draft.when);
-    connectedBlock(body, when, true, 22);
+    add(body, when, 18);
     for (int i = 0; i < draft.then.size(); i++) {
       int index = i;
       Rule.Piece piece = draft.then.get(i);
-      LinearLayout then = block(BrickStyle.THEN);
-      add(then, text(String.format(Locale.US, "%02d  /  THEN", i + 2), 12, INK, true), 0);
+      LinearLayout then = card(BrickStyle.SURFACE);
+      add(then, text(String.format(Locale.US, "THEN %d", i + 1), 12, PURPLE, true), 0);
       add(then, text(Rule.label(piece.type), 23, INK, true), 7);
-      add(then, quiet("Change THEN block", () -> choosePiece(false, index)), 12);
+      add(then, quiet("Change action", () -> choosePiece(false, index)), 12);
       thenOptions(then, piece, index);
       LinearLayout controls = row();
       Button up =
@@ -794,12 +790,12 @@ public final class MainActivity extends Activity {
         controls.addView(b, lp);
       }
       add(then, controls, 14);
-      connectedBlock(body, then, false, -14);
+      add(body, then, 12);
     }
     add(
         body,
         quiet(
-            "+  Snap on another THEN",
+            "+  Add another action",
             () -> {
               if (draft.then.size() < 20) {
                 draft.then.add(Rule.action("show_message"));
@@ -1085,7 +1081,7 @@ public final class MainActivity extends Activity {
   private void saveDraft() {
     List<String> e = draft.errors();
     if (!e.isEmpty()) {
-      alert("Let's finish these pieces", String.join("\n", e));
+      alert("Finish these rule details", String.join("\n", e));
       return;
     }
     List<Rule> rules = store.rules();
@@ -1123,10 +1119,10 @@ public final class MainActivity extends Activity {
   // setup.
   private void setup() {
     title(
-        "GET YOUR PIECES READY",
+        "APP ACCESS",
         "Phone setup",
         "A check means access is ready. Tap a permission for details, or its button to change it.");
-    LinearLayout updateCard = card(BrickStyle.THEN);
+    LinearLayout updateCard = card(BrickStyle.SURFACE);
     add(updateCard, text("App updates", 20, INK, true), 0);
     updateStatus = text(updates.status(), 14, MUTED, false);
     add(updateCard, updateStatus, 8);
@@ -1233,7 +1229,7 @@ public final class MainActivity extends Activity {
                     .show());
     add(body, samsung, 10);
     add(body, updateCard, 14);
-    LinearLayout backup = card(BrickStyle.ENABLED_BODY);
+    LinearLayout backup = card(BrickStyle.SURFACE);
     add(backup, text("Keep your creations", 20, INK, true), 0);
     add(
         backup,
@@ -1278,7 +1274,7 @@ public final class MainActivity extends Activity {
   private void setupItem(String heading, String detail, boolean granted, Runnable action) {
     LinearLayout line = row();
     line.setPadding(dp(12), dp(17), dp(6), dp(4));
-    line.setBackground(BrickStyle.block(this, Color.WHITE));
+    line.setBackground(BrickStyle.panel(this, Color.WHITE));
     TextView check = text(granted ? "✓" : "○", 18, granted ? TEAL : ORANGE, true);
     check.setContentDescription(granted ? "Access ready" : "Access needed");
     line.addView(check, new LinearLayout.LayoutParams(dp(27), -2));
@@ -1293,7 +1289,7 @@ public final class MainActivity extends Activity {
     Button access = quiet(granted ? "Review" : "Allow", action);
     access.setTextSize(12);
     access.setMinHeight(dp(52));
-    access.setPadding(dp(6), dp(18), dp(6), dp(6));
+    access.setPadding(dp(6), dp(6), dp(6), dp(6));
     access.setContentDescription((granted ? "Review " : "Allow ") + heading);
     line.addView(access, new LinearLayout.LayoutParams(dp(76), dp(52)));
     add(body, line, 5);
@@ -1357,7 +1353,9 @@ public final class MainActivity extends Activity {
           e.status.equals("failed") || e.status.equals("blocked")
               ? ORANGE
               : e.status.equals("simulation") ? PURPLE : TEAL;
-      add(c, pill(e.status.toUpperCase(Locale.US), color, INK), 0);
+      add(c, pill(e.status.toUpperCase(Locale.US),
+          color == TEAL ? 0xFFE8F5EF : color == ORANGE ? 0xFFFCEDEC : 0xFFE8EFFB,
+          color), 0);
       add(c, text(e.title, 17, INK, true), 10);
       add(c, text(e.detail, 14, MUTED, false), 7);
       add(
@@ -1384,7 +1382,7 @@ public final class MainActivity extends Activity {
   }
 
   private void blocks() {
-    title("YOUR CONNECTED FLOWS", "Blocks", "");
+    title("YOUR AUTOMATIONS", "Blocks", "");
     pair(
         body,
         button("Add Block", PURPLE, this::newRule),
@@ -1395,43 +1393,28 @@ public final class MainActivity extends Activity {
       return;
     }
     for (Rule rule : rules) {
-      LinearLayout assembly = ruleAssembly();
-      LinearLayout statusRow = row();
-      statusRow.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1));
-      LinearLayout stateBlock = block(rule.enabled ? BrickStyle.ENABLED : BrickStyle.DISABLED);
-      stateBlock.setPadding(dp(6), dp(19), dp(6), dp(5));
-      stateBlock.setGravity(Gravity.CENTER_HORIZONTAL);
-      TextView stateLabel = text(rule.enabled ? "Enabled" : "Disabled", 12, INK, true);
-      stateLabel.setAllCaps(true);
-      stateBlock.addView(stateLabel);
+      LinearLayout ruleCard = card(BrickStyle.SURFACE);
+      LinearLayout header = row();
+      LinearLayout heading = column();
+      TextView name = text(rule.name, 19, INK, true);
+      name.setMaxLines(3);
+      add(heading, name, 0);
+      TextView stateLabel = text(rule.enabled ? "Enabled" : "Disabled", 13,
+          rule.enabled ? TEAL : ORANGE, true);
+      add(heading, stateLabel, 4);
+      header.addView(heading, new LinearLayout.LayoutParams(0, -2, 1));
       Switch enabled = new Switch(this);
       enabled.setContentDescription("Enable " + rule.name);
       enabled.setChecked(rule.enabled);
       BrickStyle.toggle(enabled, rule.enabled);
-      stateBlock.addView(enabled, new LinearLayout.LayoutParams(-2, dp(30)));
-      stateBlock.setOnClickListener(v -> enabled.performClick());
-      statusRow.addView(stateBlock, new LinearLayout.LayoutParams(dp(108), -2));
-      add(assembly, statusRow, 0);
-      LinearLayout header = block(BrickStyle.BLUE);
-      header.setPadding(dp(16), dp(26), dp(16), dp(14));
-      add(header, text(rule.name, 20, INK, true), 0);
-      add(assembly, header, -14);
-      LinearLayout interior = column();
-      interior.setPadding(dp(28), 0, dp(28), 0);
-      interior.setBackground(BrickStyle.panel(this, rule.enabled ? BrickStyle.ENABLED_BODY : BrickStyle.DISABLED));
-      LinearLayout chain = connectedStack();
-      chain.setClipChildren(false);
-      chain.setClipToPadding(false);
-      compactPiece(chain, "WHEN", FlowSummary.when(rule.when), true, -14);
+      header.addView(enabled, new LinearLayout.LayoutParams(-2, dp(48)));
+      add(ruleCard, header, 0);
+      summaryRow(ruleCard, "WHEN", FlowSummary.when(rule.when), 14);
       for (int i = 0; i < rule.then.size(); i++)
-        compactPiece(chain, "THEN " + (i + 1), FlowSummary.then(rule.then.get(i)), false, -14);
-      add(interior, chain, 0);
-      add(assembly, interior, -1);
-      LinearLayout footer = block(BrickStyle.BLUE);
-      footer.setPadding(dp(12), dp(18), dp(12), dp(10));
-      footer.setBackground(BrickStyle.block(this, BrickStyle.BLUE).studGap(68, 28));
-      pair(footer, quiet("Edit", () -> { draft = Store.copy(rule); editorPage(); }), quiet("More", () -> ruleMenu(rule)));
-      add(assembly, footer, -14);
+        summaryRow(ruleCard, "THEN " + (i + 1), FlowSummary.then(rule.then.get(i)), 8);
+      pair(ruleCard,
+          quiet("Edit", () -> { draft = Store.copy(rule); editorPage(); }),
+          quiet("More", () -> ruleMenu(rule)));
       enabled.setOnCheckedChangeListener((view, checked) -> {
         if (checked == rule.enabled) return;
         if (checked) {
@@ -1445,22 +1428,19 @@ public final class MainActivity extends Activity {
         rule.enabled = checked;
         saveChangedRule(rule);
         stateLabel.setText(checked ? "Enabled" : "Disabled");
-        stateBlock.setBackground(BrickStyle.block(this, checked ? BrickStyle.ENABLED : BrickStyle.DISABLED));
-        interior.setBackground(BrickStyle.panel(this, checked ? BrickStyle.ENABLED_BODY : BrickStyle.DISABLED));
-        BrickStyle.toggle(enabled, checked);
+        stateLabel.setTextColor(checked ? TEAL : ORANGE);
       });
-      add(body, assembly, 18);
+      add(body, ruleCard, 14);
     }
   }
 
-  private void compactPiece(
-      LinearLayout parent, String kind, String summary, boolean when, int gap) {
-    LinearLayout piece = block(when ? BrickStyle.WHEN : BrickStyle.THEN);
-    piece.setPadding(dp(10), dp(23), dp(10), dp(16));
-    add(piece, text(kind, 11, INK, true), 0);
-    TextView details = text(summary, 14, INK, true);
-    add(piece, details, 3);
-    connectedBlock(parent, piece, when, gap);
+  private void summaryRow(LinearLayout parent, String kind, String summary, int top) {
+    LinearLayout item = column();
+    item.setPadding(dp(12), dp(10), dp(12), dp(10));
+    item.setBackground(BrickStyle.smallPanel(this, BrickStyle.SUBTLE));
+    add(item, text(kind, 11, PURPLE, true), 0);
+    add(item, text(summary, 14, INK, false), 4);
+    add(parent, item, top);
   }
 
   private void simulate(Rule original) {

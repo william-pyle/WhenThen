@@ -13,13 +13,13 @@
 
 **Make life click.**
 
-WhenThen is a native Android automation app with colorful, interlocking **WHEN**, **THEN**, and option blocks. Choose an event, snap on one or more actions, and let your phone follow your rules.
+WhenThen is a native Android automation app. Choose a **WHEN** event, add one or more **THEN** actions, and let your phone follow your rules. The block icon and Overview illustration give it a playful identity while the working screens use a clean Android layout.
 
 Personal edition · Android **12 or later** · Java and Android Views
 
 ## What you can build
 
-- **Snap together a flow.** One WHEN block and up to 20 ordered THEN blocks, with templates, duplication, validation, and accessible move controls.
+- **Build a rule.** One WHEN condition and up to 20 ordered THEN actions, with templates, duplication, validation, and accessible move controls.
 - **React to calls, texts, places, and Wi-Fi.** Nine trigger types cover incoming, missed, and repeated calls; incoming and exact-match SMS; place entry and exit; and connection to or disconnection from a named Wi-Fi network.
 - **Choose from eight actions.** Mute, restore sound, set volume, use emergency loud, play an audio file, show a message or image notification, or send an SMS.
 - **Try before you enable.** Simulation uses the real rule matcher and previews actions without sending texts, changing volume, displaying action notifications, or playing audio.
@@ -33,22 +33,22 @@ For example: **WHEN** a chosen contact calls three times within five minutes, **
 
 ## Inside the app
 
-The current source contains the **1.0.5 flat brick redesign**: rectangular studs,
-black outlines, yellow WHEN, lavender THEN and blue rule frames. Enabled rules use
-a green status block and mint interior; disabled rules use red. Buttons, navigation,
-forms and app dialogs share that style. The screenshots below are from the local
-review build; the latest published release remains 1.0.4.
+Version **1.0.6** keeps the connected yellow WHEN and lavender THEN blocks in the
+icon and Overview illustration. Blocks, the rule builder, templates, Activity,
+Setup, dialogs and map controls use simple shaded cards, ordinary rounded buttons,
+text bottom navigation and native switches. The screenshots below are from an
+Android emulator running 1.0.6.
 
 | Overview | Blocks | Setup |
 | --- | --- | --- |
-| <img src="docs/images/flat-overview-1.0.5.png" alt="Overview with connected WHEN and THEN bricks and monitoring status" width="250"> | <img src="docs/images/flat-blocks-enabled-1.0.5.png" alt="Saved block with its condition, connected actions, toggle, Edit and More" width="250"> | <img src="docs/images/flat-setup-1.0.5.png" alt="Compact permission checks and access buttons" width="250"> |
+| <img src="docs/images/clean-overview-1.0.6.png" alt="Overview with connected WHEN and THEN illustration above a simple monitoring card" width="250"> | <img src="docs/images/clean-blocks-enabled-1.0.6.png" alt="Saved rule with shaded condition and action rows, native switch, Edit and More" width="250"> | <img src="docs/images/clean-setup-1.0.6.png" alt="Compact permission checks in standard shaded rows" width="250"> |
 
-These are actual Android emulator captures of the 1.0.5 review build.
+These are actual Android emulator captures of the 1.0.6 build.
 
 <details>
 <summary>The template library</summary>
 
-<img src="docs/images/flat-templates-1.0.5.png" alt="Template library with import, export, and editable starter flows" width="320">
+<img src="docs/images/clean-templates-1.0.6.png" alt="Template library with shaded cards and ordinary buttons" width="320">
 
 </details>
 
@@ -79,7 +79,7 @@ For a preview without phone actions, open a block's **More → Try in simulator*
 ## Four pages
 
 - **Overview:** the welcome screen and monitoring status, with quick links to create a rule or explore templates.
-- **Blocks:** all saved flows as connected WHEN and THEN bricks. Each shows its actual requirement and actions, an enabled/disabled toggle, **Edit**, and **More**. **Add Block** and **Explore Templates** are at the top.
+- **Blocks:** saved rules in shaded cards. Each shows its actual WHEN requirement and ordered THEN actions, an enabled/disabled switch, **Edit**, and **More**. **Add Block** and **Explore Templates** are at the top.
 - **Activity:** the local record of runs, tests, and failures. A failed, blocked, or partially failed event offers **Report on GitHub**.
 - **Setup:** compact permission rows with a readiness check and **Allow** or **Review** button. Tap a permission name for its explanation. Samsung battery help, updates, and backups remain available. The old self-reported checklist has been removed.
 
@@ -230,9 +230,9 @@ Check the release archive's source and private-file exclusions with `python test
 
 GitHub builds, tests, signs, and attaches the APK automatically when you publish a stable release. Signing secrets are already configured for this repository; the private key is never committed.
 
-1. Run `python scripts/set-version.py 1.0.5`, replacing `1.0.5` with your next version. This also increases Android's version code.
+1. Run `python scripts/set-version.py 1.0.7`, replacing `1.0.7` with your next version. This also increases Android's version code.
 2. Commit and push the app changes and `version.properties` to `main`.
-3. Open [Create a release](https://github.com/william-pyle/WhenThen/releases/new), create the matching tag (for example `v1.0.5`) from `main`, add release notes, and publish it as a stable release.
+3. Open [Create a release](https://github.com/william-pyle/WhenThen/releases/new), create the matching tag (for example `v1.0.7`) from `main`, add release notes, and publish it as a stable release.
 4. Wait for [Release APK](https://github.com/william-pyle/WhenThen/actions/workflows/release.yml) to finish successfully. `WhenThen.apk`, the source ZIP, checksums, and `update.json` will appear on the release. The app only offers an update after these files are ready.
 
 A release is ready only when its workflow is green and the APK is attached. Versions without an updater need one manual installation of the updater-enabled APK first.

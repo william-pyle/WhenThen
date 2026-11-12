@@ -71,33 +71,38 @@ public class FlatBrickUiTest {
     Rule rule = fixture(true, 2); store.save(List.of(rule));
     activity.launchActivity(null);
     onView(withText("THEN  do something")).check(matches(isDisplayed()));
-    capture("flat-overview");
+    capture("clean-overview");
     onView(withContentDescription("Blocks")).perform(click());
+    onView(withText("Add Block")).check((view, error) -> {
+      if (error != null) throw error;
+      assertFalse("Standard button must not draw studs", view.getBackground() instanceof BlockDrawable);
+    });
     onView(withText("THEN 2")).perform(scrollTo()).check(matches(isDisplayed()));
     onView(withContentDescription("Enable " + rule.name)).perform(scrollTo());
-    capture("flat-blocks-enabled");
+    capture("clean-blocks-enabled");
     onView(withContentDescription("Enable " + rule.name)).perform(click());
     assertFalse(store.rules().get(0).enabled);
     assertEquals(2, store.rules().get(0).then.size());
     assertTrue(store.history().stream().noneMatch(entry -> "test".equals(entry.status)));
     onView(withText("Disabled")).check(matches(isDisplayed()));
-    capture("flat-blocks-toggled");
+    capture("clean-blocks-toggled");
   }
 
   @Test public void disabledSingleThenAndOtherScreensRemainEditable() throws Exception {
     Rule rule=fixture(false,1);store.save(List.of(rule));activity.launchActivity(null);
     onView(withContentDescription("Blocks")).perform(click());
-    onView(withText("Edit")).perform(scrollTo());capture("flat-blocks-disabled");
-    onView(withText("More")).perform(click());capture("flat-more");
+    onView(withText("Edit")).perform(scrollTo());capture("clean-blocks-disabled");
+    onView(withText("More")).perform(click());capture("clean-more");
     androidx.test.espresso.Espresso.pressBack();
     onView(withText("Edit")).perform(click());
-    onView(withContentDescription("Rule name")).check(matches(withText(rule.name)));capture("flat-builder");
+    onView(withContentDescription("Rule name")).check(matches(withText(rule.name)));capture("clean-builder");
     onView(withText("Save my rule")).perform(scrollTo(),click());
     assertFalse(store.rules().get(0).enabled);
+    Thread.sleep(2400);
     onView(withContentDescription("Blocks")).perform(click());
-    onView(withText("Explore Templates")).perform(click());capture("flat-templates");
-    onView(withContentDescription("Setup")).perform(click());capture("flat-setup");
-    onView(withContentDescription("Activity")).perform(click());capture("flat-activity");
+    onView(withText("Explore Templates")).perform(click());capture("clean-templates");
+    onView(withContentDescription("Setup")).perform(click());capture("clean-setup");
+    onView(withContentDescription("Activity")).perform(click());capture("clean-activity");
   }
 
   @Test public void drawableHasFlatFillBlackEdgesAndTransparentStudGaps() {

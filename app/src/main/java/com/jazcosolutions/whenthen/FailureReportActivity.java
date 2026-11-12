@@ -73,7 +73,7 @@ public final class FailureReportActivity extends Activity {
     root.addView(buttons);
     Button close = new Button(this);
     close.setText("Close");
-    BrickStyle.button(close, BrickStyle.BLUE);
+    BrickStyle.secondaryButton(close);
     close.setOnClickListener(v -> finish());
     root.addView(close);
   }
@@ -81,7 +81,8 @@ public final class FailureReportActivity extends Activity {
   private void addButton(LinearLayout row, String text, Runnable action) {
     Button b = new Button(this);
     b.setText(text);
-    BrickStyle.button(b, BrickStyle.BLUE);
+    if (text.equals("Open GitHub")) BrickStyle.button(b, BrickStyle.BLUE);
+    else BrickStyle.secondaryButton(b);
     b.setOnClickListener(v -> action.run());
     row.addView(b, new LinearLayout.LayoutParams(0, -2, 1));
   }

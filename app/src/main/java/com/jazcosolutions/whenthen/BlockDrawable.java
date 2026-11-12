@@ -9,7 +9,7 @@ import android.graphics.PixelFormat;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 
-/** Flat outlined construction brick, shared by every app surface and control. */
+/** Flat outlined construction brick used for the Overview illustration. */
 public final class BlockDrawable extends Drawable {
   public static final float STUD_HEIGHT = 12f;
   private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);

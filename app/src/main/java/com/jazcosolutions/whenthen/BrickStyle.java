@@ -5,15 +5,17 @@ import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.RippleDrawable;
 import android.widget.Button;
 import android.widget.Switch;
 
-/** Shared palette and controls from the owner's flat-brick design. */
+/** Shared app surfaces and controls. The block drawable is reserved for the logo and Overview art. */
 public final class BrickStyle {
-  public static final int BACKGROUND = Color.WHITE, INK = Color.BLACK, MUTED = 0xFF333333;
-  public static final int WHEN = 0xFFFFC000, THEN = 0xFFB99EE7, BLUE = 0xFF0070C0;
-  public static final int ENABLED = 0xFF00B050, DISABLED = 0xFFC00000;
-  public static final int ENABLED_BODY = 0xFFD0F2E2;
+  public static final int BACKGROUND = 0xFFF7F7FA, INK = 0xFF202127, MUTED = 0xFF62656E;
+  public static final int WHEN = 0xFFFFC000, THEN = 0xFFB99EE7, BLUE = 0xFF315FAD;
+  public static final int ENABLED = 0xFF25845B, DISABLED = 0xFFB94A49;
+  public static final int ENABLED_BODY = 0xFFE8F5EF;
+  public static final int SURFACE = Color.WHITE, SUBTLE = 0xFFF0F1F5, BORDER = 0xFFE4E5EA;
   private BrickStyle() {}
   public static int dp(Context c, float value) {
     return Math.round(value * c.getResources().getDisplayMetrics().density);
@@ -24,41 +26,47 @@ public final class BrickStyle {
   public static GradientDrawable panel(Context c, int color) {
     GradientDrawable background = new GradientDrawable();
     background.setColor(color);
-    background.setStroke(dp(c, 1.5f), INK);
+    background.setCornerRadius(dp(c, 18));
+    background.setStroke(dp(c, 1), BORDER);
     return background;
   }
-  public static void button(Button button, int color) {
+
+  public static GradientDrawable smallPanel(Context c, int color) {
+    GradientDrawable background = new GradientDrawable();
+    background.setColor(color);
+    background.setCornerRadius(dp(c, 12));
+    return background;
+  }
+
+  private static void styleButton(Button button, boolean primary) {
     Context c = button.getContext();
     button.setAllCaps(false);
     button.setTextSize(14);
-    button.setTypeface(Typeface.create("sans-serif", Typeface.BOLD));
-    button.setTextColor(new ColorStateList(new int[][] {new int[] {-android.R.attr.state_enabled}, new int[] {}}, new int[] {0xFF444444, INK}));
-    button.setBackground(block(c, color));
-    button.setMinHeight(dp(c, 56));
+    button.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+    button.setTextColor(new ColorStateList(
+        new int[][] {new int[] {-android.R.attr.state_enabled}, new int[] {}},
+        new int[] {0xFF999CA4, primary ? Color.WHITE : BLUE}));
+    GradientDrawable shape = smallPanel(c, primary ? BLUE : SUBTLE);
+    button.setBackground(new RippleDrawable(ColorStateList.valueOf(
+        primary ? 0x55FFFFFF : 0x22315FAD), shape, null));
+    button.setMinHeight(dp(c, 48));
     button.setMinimumWidth(0);
     button.setMinWidth(0);
-    button.setPadding(dp(c, 10), dp(c, 20), dp(c, 10), dp(c, 8));
+    button.setPadding(dp(c, 12), dp(c, 8), dp(c, 12), dp(c, 8));
     button.setStateListAnimator(null);
   }
+  public static void button(Button button, int color) { styleButton(button, true); }
+  public static void secondaryButton(Button button) { styleButton(button, false); }
+
   public static void toggle(Switch control, boolean enabled) {
-    Context c = control.getContext();
-    int color = enabled ? ENABLED : DISABLED;
-    GradientDrawable track = new GradientDrawable();
-    track.setColor(INK);
-    track.setCornerRadius(dp(c, 20));
-    track.setSize(dp(c, 52), dp(c, 26));
-    GradientDrawable thumb = new GradientDrawable();
-    thumb.setShape(GradientDrawable.OVAL);
-    thumb.setColor(color);
-    thumb.setStroke(dp(c, 2), INK);
-    thumb.setSize(dp(c, 26), dp(c, 26));
-    control.setTrackDrawable(track);
-    control.setThumbDrawable(thumb);
-    control.setSplitTrack(false);
     control.setShowText(false);
-    control.setSwitchMinWidth(dp(c, 54));
     control.setText("");
-    control.setPadding(0, 0, 0, 0);
-    control.setMinimumHeight(dp(c, 28));
+    control.setThumbTintList(new ColorStateList(
+        new int[][] {new int[] {android.R.attr.state_checked}, new int[] {}},
+        new int[] {BLUE, 0xFFF9F9FB}));
+    control.setTrackTintList(new ColorStateList(
+        new int[][] {new int[] {android.R.attr.state_checked}, new int[] {}},
+        new int[] {0xFF9CB7E4, 0xFFB9BBC3}));
+    control.setMinimumHeight(dp(control.getContext(), 48));
   }
 }
