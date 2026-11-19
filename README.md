@@ -228,14 +228,16 @@ Check the release archive's source and private-file exclusions with `python test
 
 ## Publishing a new version
 
-GitHub builds, tests, signs, and attaches the APK automatically when you publish a stable release. Signing secrets are already configured for this repository; the private key is never committed.
+Android build validates each commit and retains an unsigned release candidate for 30 days. Publishing a stable release promotes that exact candidate: the release workflow checks successful CI, repository, workflow, run/attempt, commit, version, target/build inputs, artifact archive digest and APK hash before signing. It does not compile or repeat CI tests. Signing secrets stay in the release job; the private key is never committed.
 
 1. Run `python scripts/set-version.py 1.0.7`, replacing `1.0.7` with your next version. This also increases Android's version code.
-2. Commit and push the app changes and `version.properties` to `main`.
-3. Open [Create a release](https://github.com/william-pyle/WhenThen/releases/new), create the matching tag (for example `v1.0.7`) from `main`, add release notes, and publish it as a stable release.
-4. Wait for [Release APK](https://github.com/william-pyle/WhenThen/actions/workflows/release.yml) to finish successfully. `WhenThen.apk`, the source ZIP, checksums, and `update.json` will appear on the release. The app only offers an update after these files are ready.
+2. Finish source, version, documentation and workflow changes, then commit and push them to `main`. Wait for **Android build / verify** on that exact commit to succeed and retain its release candidate. This is the release gate, even if repository branch protection is not enabled. Do not repeat an already-green suite unless its inputs change or its artifact is lost/expired.
+3. Open [Create a release](https://github.com/william-pyle/WhenThen/releases/new), create the matching tag (for example `v1.0.7`) from the verified commit SHA, add release notes, and publish it as a stable release. Do not move or recreate an existing tag.
+4. Wait for [Release APK](https://github.com/william-pyle/WhenThen/actions/workflows/release.yml) to finish successfully. It checks APK identity/version and the existing signing certificate, then uploads `WhenThen.apk`, the source ZIP, `checksums.json` and `provenance.json`. It downloads and compares their public final bytes before uploading `update.json` last, then verifies that manifest too.
 
-A release is ready only when its workflow is green and the APK is attached. Versions without an updater need one manual installation of the updater-enabled APK first.
+A release is ready only after these checks succeed. Publication is not installation or evidence of device behavior. Installing, restarting, and device tests require separate authorization. Versions without an updater need one manual installation of the updater-enabled APK first.
+
+CI keeps debug assembly, instrumentation compilation, unit tests, lint and packaging/promotion regressions in one Gradle job, adding unsigned release assembly with `-PciUnsignedRelease=true`. That explicit option never loads local signing settings. Normal `assembleRelease` still requires signing. No emulator or phone tests run in GitHub. The Gradle action caches dependencies and build outputs; only main can write the cache, PRs read it, and Gradle task input fingerprints invalidate incompatible results. The release gate uses immutable artifacts, never cached build directories. Superseded nonrelease runs are cancelled per branch/PR; release runs serialize per tag without cancellation. Pushes only target main, PR checks target main, and tags do not trigger a second build. No path filtering skips the exact-commit gate. Keeping the small Gradle task graph in one job avoids duplicate setup and dependency downloads; the independent release run starts only when a release is requested.
 
 <details>
 <summary>Release troubleshooting and signing-key backup</summary>
@@ -243,6 +245,8 @@ A release is ready only when its workflow is green and the APK is attached. Vers
 - **Version mismatch:** the tag must be `v` followed by the exact version in the tagged source's `version.properties`.
 - **Tests fail:** fix the source, increase its version, and create a new release. Do not overwrite an already distributed version.
 - **Temporary runner or network failure:** rerun the failed jobs, or select **Actions → Release APK → Run workflow** and enter the existing incomplete release tag.
+- **Missing, expired, pending, failed or mismatched candidate:** release stops before signing. Wait for CI, or explicitly rerun Android build for the exact tagged main commit to regenerate expired/lost artifacts; never substitute a nearby green commit. Candidates from PRs/forks are not promotable. Older tags without the candidate-producing workflow need a new version; this change does not retrofit published releases.
+- **Interrupted asset upload:** identical existing assets are verified and retained. Mismatched bytes stop the workflow; it never replaces a published asset. Source ZIP timestamps are deterministic for safe retries. A completed release containing `update.json` remains immutable to this workflow.
 - **Missing signing configuration:** check **Settings → Secrets and variables → Actions**. The required secret names are `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`. Never paste their values into a commit, issue, or log.
 - **Release already complete:** publish a new version. The workflow refuses to replace a release that already contains `update.json`.
 

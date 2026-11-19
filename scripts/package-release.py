@@ -35,7 +35,12 @@ with zipfile.ZipFile(source_out, 'w', zipfile.ZIP_DEFLATED) as archive:
         if source.name.lower() in excluded_names or source.suffix.lower() in excluded_extensions:
             continue
         if source.is_file():
-            archive.write(source, pathlib.PurePosixPath('WhenThen') / relative)
+            # Stable ZIP metadata lets an incomplete upload resume without replacing assets.
+            entry = zipfile.ZipInfo(str(pathlib.PurePosixPath('WhenThen') / relative), (1980, 1, 1, 0, 0, 0))
+            entry.compress_type = zipfile.ZIP_DEFLATED
+            entry.create_system = 3
+            entry.external_attr = (0o100755 if source.name == 'gradlew' else 0o100644) << 16
+            archive.writestr(entry, source.read_bytes())
 
 record = [{'file': p.name, 'bytes': p.stat().st_size, 'sha256': hashlib.sha256(p.read_bytes()).hexdigest()} for p in [apk_out, source_out]]
 (OUT / 'checksums.json').write_text(json.dumps(record, indent=2) + '\n', encoding='utf-8')

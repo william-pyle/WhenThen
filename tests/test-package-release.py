@@ -55,6 +55,12 @@ class ReleasePackageTest(unittest.TestCase):
             self.assertEqual(manifest['versionCode'], 1)
             self.assertEqual(manifest['sha256'], checksums[0]['sha256'])
             self.assertEqual(manifest['apkUrl'], 'https://github.com/william-pyle/WhenThen/releases/download/v1.0.0/WhenThen.apk')
+            source_bytes = (root / 'dist/WhenThen-1.0.0-source.zip').read_bytes()
+            # Checkout timestamps must not change the source archive on retry.
+            import os
+            os.utime(root / 'README.md', (1000000000, 1000000000))
+            subprocess.run([sys.executable, str(root / 'scripts/package-release.py')], check=True, capture_output=True)
+            self.assertEqual((root / 'dist/WhenThen-1.0.0-source.zip').read_bytes(), source_bytes)
 
 
 if __name__ == '__main__':

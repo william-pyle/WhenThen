@@ -2,17 +2,20 @@ plugins { id 'com.android.application' }
 def appVersion = new Properties()
 rootProject.file('version.properties').withInputStream { appVersion.load(it) }
 def signingValues = new Properties()
+// CI produces an unsigned candidate; only the release job receives signing secrets.
+def ciUnsignedRelease = project.findProperty('ciUnsignedRelease') == 'true'
 def signingFile = rootProject.file('.local/tools/signing.properties')
-if (signingFile.exists()) signingFile.withInputStream { signingValues.load(it) }
+if (!ciUnsignedRelease && signingFile.exists()) signingFile.withInputStream { signingValues.load(it) }
 ['storeFile':'ANDROID_KEYSTORE_PATH', 'storePassword':'ANDROID_KEYSTORE_PASSWORD',
  'keyAlias':'ANDROID_KEY_ALIAS', 'keyPassword':'ANDROID_KEY_PASSWORD'].each { key, env ->
-    if (System.getenv(env)) signingValues[key] = System.getenv(env)
+    if (!ciUnsignedRelease && System.getenv(env)) signingValues[key] = System.getenv(env)
 }
 def canSign = ['storeFile','storePassword','keyAlias','keyPassword'].every { signingValues[it] }
 android {
     namespace 'com.jazcosolutions.whenthen'
     testBuildType (project.findProperty('testBuildType') ?: 'debug')
     compileSdk 36
+    buildToolsVersion '35.0.0'
     defaultConfig {
         applicationId 'com.jazcosolutions.whenthen'
         minSdk 31
@@ -48,5 +51,5 @@ dependencies {
 }
 tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
 tasks.matching { it.name == 'preReleaseBuild' }.configureEach {
-    doFirst { if (!canSign) throw new GradleException('Release signing is not configured. See README.md.') }
+    doFirst { if (!canSign && !ciUnsignedRelease) throw new GradleException('Release signing is not configured. See README.md.') }
 }
